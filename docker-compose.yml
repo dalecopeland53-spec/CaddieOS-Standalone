@@ -1,0 +1,31 @@
+services:
+  caddie-db:
+    image: postgis/postgis:15-3.3
+    container_name: caddie_telemetry_db
+    environment:
+      POSTGRES_USER: pro_caddie_admin
+      POSTGRES_PASSWORD: ${DB_SECURE_PASSWORD}
+      POSTGRES_DB: caddie_lock_matrix
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init_caddie_db.sql:/docker-entrypoint-initdb.d/init_caddie_db.sql:ro
+    networks: [caddie_mesh_network]
+    restart: unless-stopped
+  redis-broker:
+    image: redis:7.0-alpine
+    container_name: caddie_wind_buffer_broker
+    networks: [caddie_mesh_network]
+    restart: unless-stopped
+  ballistics-api:
+    build: ./backend
+    container_name: caddie_ballistics_engine
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgres://pro_caddie_admin:${DB_SECURE_PASSWORD}@caddie-db:5432/caddie_lock_matrix
+      REDIS_CACHE_URL: redis://redis-broker:6379/0
+    ports: ["8080:8080"]
+    depends_on: [caddie-db, redis-broker]
+    networks: [caddie_mesh_network]
+    restart: unless-stopped
+volumes: {postgres_data: {}}
+networks: {caddie_mesh_network: {driver: bridge}}
