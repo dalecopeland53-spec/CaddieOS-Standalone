@@ -1,4 +1,4 @@
-name: Native Android Standalone APK
+name: Talking Caddie Android APK
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout CaddieOS
+      - name: Checkout Talking Caddie
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -29,26 +29,33 @@ jobs:
 
       - name: Create clean native React Native shell
         run: |
-          npx --yes @react-native-community/cli@latest init CaddieOSNative --version 0.83.2 --skip-git-init --package-name com.dalecopeland.caddieos
+          npx --yes @react-native-community/cli@latest init TalkingCaddie --version 0.83.2 --skip-git-init --package-name com.dalecopeland.talkingcaddie
 
-      - name: Install CaddieOS app code
+      - name: Install Talking Caddie app code
         run: |
-          cp App.js CaddieOSNative/App.js
+          cp App.js TalkingCaddie/App.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('TalkingCaddie/android/app/src/main/res/values/strings.xml')
+          t=p.read_text()
+          t=t.replace('<string name="app_name">TalkingCaddie</string>','<string name="app_name">Talking Caddie</string>')
+          p.write_text(t)
+          PY
 
       - name: Build standalone release APK
-        working-directory: CaddieOSNative/android
+        working-directory: TalkingCaddie/android
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
-      - name: Collect standalone APK
+      - name: Collect Talking Caddie APK
         run: |
           mkdir -p output
-          cp CaddieOSNative/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Standalone.apk
+          cp TalkingCaddie/android/app/build/outputs/apk/release/app-release.apk output/Talking-Caddie.apk
 
-      - name: Upload standalone CaddieOS APK
+      - name: Upload Talking Caddie APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Standalone-Android
-          path: output/CaddieOS-Standalone.apk
+          name: Talking-Caddie-Android
+          path: output/Talking-Caddie.apk
           if-no-files-found: error
