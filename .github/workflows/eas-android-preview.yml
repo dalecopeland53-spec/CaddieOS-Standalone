@@ -37,6 +37,8 @@ jobs:
         working-directory: CaddieOS
         run: |
           npm install --save @react-native-voice/voice react-native-tts @react-native-community/geolocation @react-native-async-storage/async-storage
+          # react-native-tts still references JCenter; Gradle 9 removed jcenter().
+          sed -i 's/jcenter()/mavenCentral()/g' node_modules/react-native-tts/android/build.gradle
 
       - name: Install CaddieOS source and Android permissions
         run: |
