@@ -17,8 +17,8 @@ The `preview` profile produces an installable Android APK.
 
 - App name: CaddieOS
 - Expo slug: `caddieos-standalone`
-- Android package: `com.drc.caddieos`
-- iOS bundle ID: `com.drc.caddieos`
+- Android package: `com.dalecopeland.caddieos`
+- iOS bundle ID: `com.dalecopeland.caddieos`
 
 ## Backend
 
