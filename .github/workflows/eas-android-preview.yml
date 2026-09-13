@@ -12,7 +12,7 @@ jobs:
   build:
     name: Build CaddieOS APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     steps:
       - name: Checkout CaddieOS
@@ -33,7 +33,12 @@ jobs:
         run: |
           npx --yes @react-native-community/cli@latest init CaddieOS --version 0.83.2 --skip-git-init --package-name com.dalecopeland.caddieos
 
-      - name: Install CaddieOS source
+      - name: Install native CaddieOS features
+        working-directory: CaddieOS
+        run: |
+          npm install --save @react-native-voice/voice react-native-tts @react-native-community/geolocation @react-native-async-storage/async-storage
+
+      - name: Install CaddieOS source and Android permissions
         run: |
           cp App.js CaddieOS/App.js
           if [ -f index.js ]; then cp index.js CaddieOS/index.js; fi
@@ -41,9 +46,18 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
+          manifest = Path('CaddieOS/android/app/src/main/AndroidManifest.xml')
+          text = manifest.read_text()
+          perms = '''<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />'''
+          if 'android.permission.RECORD_AUDIO' not in text:
+              text = text.replace('<application', perms + '\n    <application', 1)
+          manifest.write_text(text)
+
           strings = Path('CaddieOS/android/app/src/main/res/values/strings.xml')
           text = strings.read_text()
-          text = text.replace('<string name="app_name">CaddieOS</string>', '<string name="app_name">CaddieOS</string>')
+          if '<string name="app_name">' in text:
+              import re
+              text = re.sub(r'<string name="app_name">.*?</string>', '<string name="app_name">CaddieOS</string>', text)
           strings.write_text(text)
           PY
 
@@ -51,7 +65,8 @@ jobs:
         run: |
           test -s CaddieOS/App.js
           test -s CaddieOS/index.js
-          tail -n 5 CaddieOS/App.js
+          grep -q "@react-native-voice/voice" CaddieOS/App.js
+          grep -q "Wind Guide" CaddieOS/App.js
 
       - name: Build release APK
         working-directory: CaddieOS/android
