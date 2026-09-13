@@ -1,29 +1,54 @@
-name: EAS Android Preview Build
+name: Native Android APK
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout CaddieOS
         uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.20.2
 
-      - name: Install dependencies
-        run: npm install
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-      - name: Install EAS CLI
-        run: npm install --global eas-cli
+      - name: Create clean native React Native shell
+        run: |
+          npx --yes @react-native-community/cli@latest init CaddieOSNative --version 0.83.2 --skip-git-init --package-name com.dalecopeland.caddieos
 
-      - name: Start Android preview build
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile preview --non-interactive --no-wait
+      - name: Install CaddieOS app code
+        run: |
+          cp App.js CaddieOSNative/App.js
+
+      - name: Build installable Android APK
+        working-directory: CaddieOSNative/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Collect APK
+        run: |
+          mkdir -p output
+          cp CaddieOSNative/android/app/build/outputs/apk/debug/app-debug.apk output/CaddieOS.apk
+
+      - name: Upload CaddieOS APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CaddieOS-Android
+          path: output/CaddieOS.apk
+          if-no-files-found: error
