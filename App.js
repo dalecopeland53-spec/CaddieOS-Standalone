@@ -1,6 +1,5 @@
 import React, {useMemo, useState} from 'react';
-import {SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
-import {StatusBar} from 'expo-status-bar';
+import {SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
 const BAG=[
  ['Driver',230],['3W',210],['5W',195],['4i',180],['5i',170],['6i',160],['7i',150],['8i',140],['9i',130],['PW',115],['GW',100],['SW',85],['LW',70]
@@ -29,7 +28,7 @@ export default function App(){
  const [hole,setHole]=useState('1');
  const result=useMemo(()=>{const y=playsLike(distance,wind,elev,lie); const c=clubFor(y); return {y,c:c[0],carry:c[1]}},[distance,wind,elev,lie]);
  const lies=['Tee','Fairway','Rough','Deep Rough','Fairway Bunker','Greenside Bunker'];
- return <SafeAreaView style={s.safe}><StatusBar style="dark"/><View style={s.header}><Text style={s.brand}>CADDIE<Text style={s.blue}>OS</Text></Text><Text style={s.tag}>PRO TOUR SUITE • STANDALONE</Text></View>
+ return <SafeAreaView style={s.safe}><StatusBar barStyle="dark-content" backgroundColor="#E9E5DC"/><View style={s.header}><Text style={s.brand}>CADDIE<Text style={s.blue}>OS</Text></Text><Text style={s.tag}>PRO TOUR SUITE • STANDALONE</Text></View>
  <View style={s.nav}>{['CADDIE','BAG','COURSE'].map(x=><TouchableOpacity key={x} onPress={()=>setTab(x)} style={[s.navBtn,tab===x&&s.navOn]}><Text style={[s.navText,tab===x&&s.navTextOn]}>{x}</Text></TouchableOpacity>)}</View>
  <ScrollView contentContainerStyle={s.body}>
  {tab==='CADDIE'&&<>
