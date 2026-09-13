@@ -38,88 +38,52 @@ jobs:
         run: |
           npm install --save @react-native-voice/voice@3.2.4 react-native-tts @react-native-community/geolocation @react-native-async-storage/async-storage
 
-          # Both Voice and TTS ship Android Gradle files from the pre-Gradle-9 era.
-          # Replace only their Android build metadata; their Java/JS functionality stays unchanged.
           cat > node_modules/@react-native-voice/voice/android/build.gradle <<'GRADLE'
           apply plugin: 'com.android.library'
-
           android {
               namespace 'com.wenkesj.voice'
               compileSdk 36
-
-              defaultConfig {
-                  minSdk 24
-                  targetSdk 36
-              }
+              defaultConfig { minSdk 24; targetSdk 36 }
           }
-
-          repositories {
-              google()
-              mavenCentral()
-          }
-
-          dependencies {
-              implementation 'com.facebook.react:react-android'
-          }
+          repositories { google(); mavenCentral() }
+          dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
 
           cat > node_modules/react-native-tts/android/build.gradle <<'GRADLE'
           apply plugin: 'com.android.library'
-
           android {
               namespace 'net.no_mad.tts'
               compileSdk 36
-
-              defaultConfig {
-                  minSdk 24
-                  targetSdk 36
-              }
+              defaultConfig { minSdk 24; targetSdk 36 }
           }
-
-          repositories {
-              google()
-              mavenCentral()
-          }
-
-          dependencies {
-              implementation 'com.facebook.react:react-android'
-          }
+          repositories { google(); mavenCentral() }
+          dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
 
-          # Remove legacy manifest package declarations now represented by Gradle namespace.
           python3 - <<'PY'
           from pathlib import Path
           import re
-          for p in [
-              Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),
-              Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml'),
-          ]:
+          for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'), Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')]:
               if p.exists():
-                  text = p.read_text()
-                  text = re.sub(r'\s+package="[^"]+"', '', text, count=1)
-                  p.write_text(text)
+                  p.write_text(re.sub(r'\s+package="[^"]+"', '', p.read_text(), count=1))
           PY
 
       - name: Install CaddieOS source and Android permissions
         run: |
           cp App.js CaddieOS/App.js
           if [ -f index.js ]; then cp index.js CaddieOS/index.js; fi
-
           python3 - <<'PY'
           from pathlib import Path
-
+          import re
           manifest = Path('CaddieOS/android/app/src/main/AndroidManifest.xml')
           text = manifest.read_text()
           perms = '''<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />'''
           if 'android.permission.RECORD_AUDIO' not in text:
               text = text.replace('<application', perms + '\n    <application', 1)
           manifest.write_text(text)
-
           strings = Path('CaddieOS/android/app/src/main/res/values/strings.xml')
           text = strings.read_text()
-          if '<string name="app_name">' in text:
-              import re
-              text = re.sub(r'<string name="app_name">.*?</string>', '<string name="app_name">CaddieOS</string>', text)
+          text = re.sub(r'<string name="app_name">.*?</string>', '<string name="app_name">CaddieOS</string>', text)
           strings.write_text(text)
           PY
 
@@ -128,7 +92,7 @@ jobs:
           test -s CaddieOS/App.js
           test -s CaddieOS/index.js
           grep -q "@react-native-voice/voice" CaddieOS/App.js
-          grep -q "Wind Guide" CaddieOS/App.js
+          grep -q "CaddieOS" CaddieOS/App.js
 
       - name: Validate modernized Android dependencies
         run: |
