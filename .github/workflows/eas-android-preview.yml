@@ -1,4 +1,4 @@
-name: Native Android APK
+name: Native Android Standalone APK
 
 on:
   push:
@@ -35,20 +35,20 @@ jobs:
         run: |
           cp App.js CaddieOSNative/App.js
 
-      - name: Build installable Android APK
+      - name: Build standalone release APK
         working-directory: CaddieOSNative/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Collect APK
+      - name: Collect standalone APK
         run: |
           mkdir -p output
-          cp CaddieOSNative/android/app/build/outputs/apk/debug/app-debug.apk output/CaddieOS.apk
+          cp CaddieOSNative/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Standalone.apk
 
-      - name: Upload CaddieOS APK
+      - name: Upload standalone CaddieOS APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Android
-          path: output/CaddieOS.apk
+          name: CaddieOS-Standalone-Android
+          path: output/CaddieOS-Standalone.apk
           if-no-files-found: error
