@@ -72,6 +72,7 @@ jobs:
         run: |
           cp App.js CaddieOS/App.js
           if [ -f index.js ]; then cp index.js CaddieOS/index.js; fi
+          if [ -f compactWorkingPages.js ]; then cp compactWorkingPages.js CaddieOS/compactWorkingPages.js; fi
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -91,6 +92,7 @@ jobs:
         run: |
           test -s CaddieOS/App.js
           test -s CaddieOS/index.js
+          test -s CaddieOS/compactWorkingPages.js
           grep -q "@react-native-voice/voice" CaddieOS/App.js
           grep -q "CaddieOS" CaddieOS/App.js
 
