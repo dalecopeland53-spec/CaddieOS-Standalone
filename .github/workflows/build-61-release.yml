@@ -1,4 +1,4 @@
-name: CaddieOS Build 61 Release
+name: CaddieOS Build 63 Release
 
 on:
   push:
@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build61:
-    name: Build 61 APK
+  build63:
+    name: Build 63 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -60,15 +60,23 @@ jobs:
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
 
-      - name: Install Build 61 source
+      - name: Install Build 63 source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
           cp compactWorkingPages.js CaddieOS/compactWorkingPages.js
           python3 scripts/build60_patch.py
           python3 scripts/build61_patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('CaddieOS/android/app/build.gradle')
+          s = p.read_text()
+          import re
+          s = re.sub(r'versionCode\s+\d+', 'versionCode 63', s, count=1)
+          p.write_text(s)
+          PY
 
-      - name: Validate Build 61 source
+      - name: Validate Build 63 source
         run: |
           grep -q "SAVE COURSE" CaddieOS/App.js
           grep -q "LIVE HOLE MAP" CaddieOS/App.js
@@ -77,7 +85,7 @@ jobs:
           grep -q "Array.from({length:18}" CaddieOS/App.js
           grep -q "GET MAPPING GPS" CaddieOS/App.js
           grep -q "ANTI-GLARE" CaddieOS/App.js
-          grep -q "versionCode 61" CaddieOS/android/app/build.gradle
+          grep -q "versionCode 63" CaddieOS/android/app/build.gradle
           grep -q "newArchEnabled=false" CaddieOS/android/gradle.properties
 
       - name: Build release APK
@@ -89,12 +97,12 @@ jobs:
       - name: Collect APK
         run: |
           mkdir -p output
-          cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-61.apk
+          cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-63.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-61
-          path: output/CaddieOS-Build-61.apk
+          name: CaddieOS-Build-63
+          path: output/CaddieOS-Build-63.apk
           if-no-files-found: error
           retention-days: 14
