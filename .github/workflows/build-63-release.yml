@@ -56,21 +56,20 @@ jobs:
           python3 scripts/build65_patch.py
       - name: Validate Build 65 source
         run: |
-          grep -q "versionCode 65" CaddieOS/android/app/build.gradle
-          grep -q 'versionName "1.0.65"' CaddieOS/android/app/build.gradle
-          grep -q "BUILD64_PREMIUM" CaddieOS/App.js
-          grep -q "BUILD65_WIND_UI" CaddieOS/App.js
-          grep -q "ANTI-GLARE ON" CaddieOS/App.js
-          grep -q "WIND DIRECTION" CaddieOS/App.js
-          grep -q "LEFT → RIGHT" CaddieOS/App.js
-          grep -q "RIGHT → LEFT" CaddieOS/App.js
-          grep -q "My Pre Shot Routine" CaddieOS/App.js
-          grep -q "CADDIEOS_PARTNERS_V1" CaddieOS/App.js
-          grep -q "4-player traditional card" CaddieOS/App.js
-          grep -q "android.permission.ACCESS_FINE_LOCATION" CaddieOS/android/app/src/main/AndroidManifest.xml
-          grep -q "android.permission.ACCESS_COARSE_LOCATION" CaddieOS/android/app/src/main/AndroidManifest.xml
-          grep -q "android.permission.RECORD_AUDIO" CaddieOS/android/app/src/main/AndroidManifest.xml
-          grep -q "android.permission.INTERNET" CaddieOS/android/app/src/main/AndroidManifest.xml
+          grep -Fq "versionCode 65" CaddieOS/android/app/build.gradle
+          grep -Fq 'versionName "1.0.65"' CaddieOS/android/app/build.gradle
+          grep -Fq "BUILD64_PREMIUM" CaddieOS/App.js
+          grep -Fq "BUILD65_WIND_UI" CaddieOS/App.js
+          grep -Fq "ANTI-GLARE ON" CaddieOS/App.js
+          grep -Fq "WIND DIRECTION" CaddieOS/App.js
+          grep -Fq "windArrowBox" CaddieOS/App.js
+          grep -Fq "My Pre Shot Routine" CaddieOS/App.js
+          grep -Fq "CADDIEOS_PARTNERS_V1" CaddieOS/App.js
+          grep -Fq "4-player traditional card" CaddieOS/App.js
+          grep -Fq "android.permission.ACCESS_FINE_LOCATION" CaddieOS/android/app/src/main/AndroidManifest.xml
+          grep -Fq "android.permission.ACCESS_COARSE_LOCATION" CaddieOS/android/app/src/main/AndroidManifest.xml
+          grep -Fq "android.permission.RECORD_AUDIO" CaddieOS/android/app/src/main/AndroidManifest.xml
+          grep -Fq "android.permission.INTERNET" CaddieOS/android/app/src/main/AndroidManifest.xml
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
