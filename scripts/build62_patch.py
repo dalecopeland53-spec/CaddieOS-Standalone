@@ -13,6 +13,11 @@ t=t.replace(old,new,1)
 # Tighten course cards/search/saved row without reducing tap targets.
 t=t.replace("maxWidth:145","maxWidth:118",1)
 t=t.replace("savedCourses.slice(0,8)","savedCourses.slice(0,5)",1)
+# Make wind impossible to miss: dedicated visual meter on Round, separate from map overlay.
+marker='<View style={s.panel}><Text style={s.panelTitle}>GREEN DISTANCES</Text>'
+windbox='''<View style={[s.panel,{padding:10}]}><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}><View><Text style={s.panelTitle}>LIVE WIND</Text><Text style={{fontSize:12,fontWeight:'900',color:C.muted}}>{windType}</Text></View><View style={{width:58,height:58,borderRadius:29,backgroundColor:C.navy,borderWidth:2,borderColor:C.gold,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:32,lineHeight:34,fontWeight:'900',color:C.gold2}}>{arrow}</Text></View><View style={{alignItems:'flex-end'}}><Text style={{fontSize:28,fontWeight:'900',color:C.navy}}>{wind||0}</Text><Text style={{fontSize:11,fontWeight:'900',color:C.muted}}>{units==='METRES'?'km/h':'mph'}</Text></View></View></View>'''
+if marker not in t: raise SystemExit('Build 62 wind meter marker missing')
+t=t.replace(marker,windbox+marker,1)
 # Version/build identity and native mic label repair.
 t=t.replace('versionCode 61','versionCode 62')
 # Voice button wording: tapping should clearly start recognition, not just say Caddie.
