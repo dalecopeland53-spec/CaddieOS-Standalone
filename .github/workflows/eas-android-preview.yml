@@ -120,3 +120,5 @@ jobs:
           path: output/CaddieOS.apk
           if-no-files-found: error
           retention-days: 14
+
+# Rebuild trigger: Android system-bar safe-area fix
