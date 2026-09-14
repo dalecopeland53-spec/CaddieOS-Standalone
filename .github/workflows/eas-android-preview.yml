@@ -36,7 +36,7 @@ jobs:
       - name: Install and modernize native CaddieOS features
         working-directory: CaddieOS
         run: |
-          npm install --save @react-native-voice/voice@3.2.4 react-native-tts @react-native-community/geolocation @react-native-async-storage/async-storage
+          npm install --save @react-native-voice/voice@3.2.4 react-native-tts @react-native-community/geolocation @react-native-async-storage/async-storage react-native-safe-area-context
 
           cat > node_modules/@react-native-voice/voice/android/build.gradle <<'GRADLE'
           apply plugin: 'com.android.library'
@@ -88,13 +88,16 @@ jobs:
           strings.write_text(text)
           PY
 
-      - name: Validate JavaScript entry files
+      - name: Validate CaddieOS source
         run: |
           test -s CaddieOS/App.js
           test -s CaddieOS/index.js
-          test -s CaddieOS/compactWorkingPages.js
           grep -q "@react-native-voice/voice" CaddieOS/App.js
-          grep -q "CaddieOS" CaddieOS/App.js
+          grep -q "react-native-safe-area-context" CaddieOS/App.js
+          grep -q "POST-ROUND CADDIE" CaddieOS/App.js
+          grep -q "10-Minute Flow Warm-Up" CaddieOS/App.js
+          ! grep -q "PETE" CaddieOS/App.js
+          ! grep -q "caddieName" CaddieOS/App.js
 
       - name: Validate modernized Android dependencies
         run: |
@@ -120,5 +123,3 @@ jobs:
           path: output/CaddieOS.apk
           if-no-files-found: error
           retention-days: 14
-
-# Rebuild trigger: Android system-bar safe-area fix
