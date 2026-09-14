@@ -96,6 +96,8 @@ jobs:
           grep -q "react-native-safe-area-context" CaddieOS/App.js
           grep -q "POST-ROUND CADDIE" CaddieOS/App.js
           grep -q "10-Minute Flow Warm-Up" CaddieOS/App.js
+          grep -q "api.opengolfapi.org/v1/courses/search" CaddieOS/App.js
+          grep -q "Contains data from OpenGolfAPI" CaddieOS/App.js
           ! grep -q "PETE" CaddieOS/App.js
           ! grep -q "caddieName" CaddieOS/App.js
 
