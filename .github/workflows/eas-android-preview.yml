@@ -86,6 +86,22 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
+
+          app = Path('CaddieOS/App.js')
+          app_text = app.read_text()
+          marker = "function Header({go})"
+          helpers = """
+const Panel=({children})=><View style={s.panel}>{children}</View>;
+const Label=({text})=><Text style={s.label}>{text}</Text>;
+const Chip=({active,text,onPress})=><TouchableOpacity onPress={onPress} style={[s.chip,active&&{backgroundColor:C.gold}]}><Text style={[s.chipText,active&&{color:C.dark}]}>{text}</Text></TouchableOpacity>;
+const Mini=({text,onPress})=><TouchableOpacity onPress={onPress} style={{width:40,height:40,borderRadius:9,backgroundColor:C.navy,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:22,fontWeight:'900',color:C.white}}>{text}</Text></TouchableOpacity>;
+"""
+          if 'const Panel=({children})' not in app_text:
+              if marker not in app_text:
+                  raise SystemExit('Header marker not found while repairing Course helpers')
+              app_text = app_text.replace(marker, helpers + '\n' + marker, 1)
+          app.write_text(app_text)
+
           manifest = Path('CaddieOS/android/app/src/main/AndroidManifest.xml')
           text = manifest.read_text()
           perms = '''<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />'''
@@ -109,6 +125,10 @@ jobs:
           grep -q "10-Minute Flow Warm-Up" CaddieOS/App.js
           grep -q "api.opengolfapi.org/v1/courses/search" CaddieOS/App.js
           grep -q "Contains data from OpenGolfAPI" CaddieOS/App.js
+          grep -q "const Panel=({children})" CaddieOS/App.js
+          grep -q "const Label=({text})" CaddieOS/App.js
+          grep -q "const Chip=({active,text,onPress})" CaddieOS/App.js
+          grep -q "const Mini=({text,onPress})" CaddieOS/App.js
           ! grep -q "PETE" CaddieOS/App.js
           ! grep -q "caddieName" CaddieOS/App.js
           grep -q "newArchEnabled=false" CaddieOS/android/gradle.properties
