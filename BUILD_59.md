@@ -7,3 +7,5 @@ Purpose: rebuild the native Android APK with the Course-tab runtime helper repai
 No visual redesign or sizing changes in this build.
 
 Build 59 clean workflow trigger: 2.
+
+Build 62 release trigger: approved Current Hole redesign, compact settings/course layout, and tap-to-talk microphone repair.
