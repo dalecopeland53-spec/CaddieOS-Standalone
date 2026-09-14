@@ -1,4 +1,4 @@
-name: CaddieOS Build 64 Release
+name: CaddieOS Build 65 Release
 
 on:
   push:
@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build64:
-    name: Build 64 APK
+  build65:
+    name: Build 65 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -43,7 +43,7 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install Build 64 source
+      - name: Install Build 65 source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
@@ -53,12 +53,17 @@ jobs:
           python3 scripts/build62_patch.py
           python3 scripts/build63_patch.py
           python3 scripts/build64_patch.py
-      - name: Validate Build 64 source
+          python3 scripts/build65_patch.py
+      - name: Validate Build 65 source
         run: |
-          grep -q "versionCode 64" CaddieOS/android/app/build.gradle
-          grep -q 'versionName "1.0.64"' CaddieOS/android/app/build.gradle
+          grep -q "versionCode 65" CaddieOS/android/app/build.gradle
+          grep -q 'versionName "1.0.65"' CaddieOS/android/app/build.gradle
           grep -q "BUILD64_PREMIUM" CaddieOS/App.js
+          grep -q "BUILD65_WIND_UI" CaddieOS/App.js
           grep -q "ANTI-GLARE ON" CaddieOS/App.js
+          grep -q "WIND DIRECTION" CaddieOS/App.js
+          grep -q "LEFT → RIGHT" CaddieOS/App.js
+          grep -q "RIGHT → LEFT" CaddieOS/App.js
           grep -q "My Pre Shot Routine" CaddieOS/App.js
           grep -q "CADDIEOS_PARTNERS_V1" CaddieOS/App.js
           grep -q "4-player traditional card" CaddieOS/App.js
@@ -70,11 +75,11 @@ jobs:
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-64.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-65.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-64
-          path: output/CaddieOS-Build-64.apk
+          name: CaddieOS-Build-65
+          path: output/CaddieOS-Build-65.apk
           if-no-files-found: error
           retention-days: 14
