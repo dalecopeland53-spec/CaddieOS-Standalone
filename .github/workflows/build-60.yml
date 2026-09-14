@@ -1,0 +1,192 @@
+name: CaddieOS Build 60
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build60:
+    name: Build 60 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Create native shell
+        run: |
+          npx --yes @react-native-community/cli@latest init CaddieOS --version 0.81.6 --skip-git-init --package-name com.dalecopeland.caddieos
+
+      - name: Install native features
+        working-directory: CaddieOS
+        run: |
+          npm install --save @react-native-voice/voice@3.2.4 react-native-tts@4.1.1 @react-native-community/geolocation@3.4.0 @react-native-async-storage/async-storage@2.2.0 react-native-safe-area-context@5.6.2
+
+      - name: Repair legacy Android libraries
+        working-directory: CaddieOS
+        run: |
+          cat > node_modules/@react-native-voice/voice/android/build.gradle <<'GRADLE'
+          apply plugin: 'com.android.library'
+          android {
+              namespace 'com.wenkesj.voice'
+              compileSdk 36
+              defaultConfig { minSdk 24; targetSdk 36 }
+          }
+          repositories { google(); mavenCentral() }
+          dependencies { implementation 'com.facebook.react:react-android' }
+          GRADLE
+          cat > node_modules/react-native-tts/android/build.gradle <<'GRADLE'
+          apply plugin: 'com.android.library'
+          android {
+              namespace 'net.no_mad.tts'
+              compileSdk 36
+              defaultConfig { minSdk 24; targetSdk 36 }
+          }
+          repositories { google(); mavenCentral() }
+          dependencies { implementation 'com.facebook.react:react-android' }
+          GRADLE
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'), Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')]:
+              if p.exists():
+                  p.write_text(re.sub(r'\s+package="[^"]+"', '', p.read_text(), count=1))
+          PY
+
+      - name: Install and upgrade Build 60 source
+        run: |
+          cp App.js CaddieOS/App.js
+          cp index.js CaddieOS/index.js
+          cp compactWorkingPages.js CaddieOS/compactWorkingPages.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          app=Path('CaddieOS/App.js')
+          text=app.read_text()
+
+          def must(old,new,label):
+              global text
+              if old not in text:
+                  raise SystemExit(f'Build 60 patch marker missing: {label}')
+              text=text.replace(old,new,1)
+
+          # Helpers used by Course screen.
+          marker='function Header({go})'
+          helpers="""
+          const Panel=({children})=><View style={s.panel}>{children}</View>;
+          const Label=({text})=><Text style={s.label}>{text}</Text>;
+          const Chip=({active,text,onPress})=><TouchableOpacity onPress={onPress} style={[s.chip,active&&{backgroundColor:C.gold}]}><Text style={[s.chipText,active&&{color:C.dark}]}>{text}</Text></TouchableOpacity>;
+          const Mini=({text,onPress})=><TouchableOpacity onPress={onPress} style={{width:40,height:40,borderRadius:9,backgroundColor:C.navy,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:22,fontWeight:'900',color:C.white}}>{text}</Text></TouchableOpacity>;
+          """
+          if 'const Panel=({children})' not in text:
+              if marker not in text: raise SystemExit('Build 60: Header marker missing')
+              text=text.replace(marker,helpers+'\n'+marker,1)
+
+          # Live GPS engine for the Round screen.
+          must("import React,{useEffect,useMemo,useState}from'react';","import React,{useEffect,useMemo,useRef,useState}from'react';",'React useRef')
+          must("[targets,setTargets]=useState(blankTargets()),[gps,setGps]=useState(null);","[targets,setTargets]=useState(blankTargets()),[gps,setGps]=useState(null),[gpsLive,setGpsLive]=useState(false);",'GPS state')
+          must("const[warmDone,setWarmDone]=useState([]),[routineSteps,setRoutineSteps]=useState(ROUTINE_DEFAULT),[routineDone,setRoutineDone]=useState([]);","const[warmDone,setWarmDone]=useState([]),[routineSteps,setRoutineSteps]=useState(ROUTINE_DEFAULT),[routineDone,setRoutineDone]=useState([]);\n const gpsWatch=useRef(null);\n const[savedCourses,setSavedCourses]=useState([]);",'saved courses state')
+          must("Object.entries({units:setUnits,player:setPlayer,email:setEmail,handicap:setHandicap,bag:setBag,course:setCourse,tee:setTee,targets:setTargets,scores:setScores,putts:setPutts,gir:setGir,fw:setFw,pen:setPen,notes:setNotes,roundLog:setRoundLog,practiceHistory:setPracticeHistory,routineSteps:setRoutineSteps,courseInfo:setCourseInfo})","Object.entries({units:setUnits,player:setPlayer,email:setEmail,handicap:setHandicap,bag:setBag,course:setCourse,tee:setTee,targets:setTargets,scores:setScores,putts:setPutts,gir:setGir,fw:setFw,pen:setPen,notes:setNotes,roundLog:setRoundLog,practiceHistory:setPracticeHistory,routineSteps:setRoutineSteps,courseInfo:setCourseInfo,savedCourses:setSavedCourses})",'load saved courses')
+          must("AsyncStorage.setItem(STORAGE,JSON.stringify({units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo}))","AsyncStorage.setItem(STORAGE,JSON.stringify({units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo,savedCourses}))",'persist saved courses')
+          must("[units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo]);","[units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo,savedCourses]);",'saved courses dependencies')
+
+          oldgps="const getGPS=async()=>{if(Platform.OS==='android'){const ok=await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);if(ok!==PermissionsAndroid.RESULTS.GRANTED)return Alert.alert('Location permission','Allow location access so CaddieOS can use GPS.')}Geolocation.getCurrentPosition(p=>setGps({lat:p.coords.latitude.toFixed(6),lon:p.coords.longitude.toFixed(6),acc:Math.round(p.coords.accuracy)}),()=>Alert.alert('GPS','Could not get your current position.'),{enableHighAccuracy:true,timeout:15000,maximumAge:3000})};"
+          newgps="""const allowGPS=async()=>{if(Platform.OS!=='android')return true;const ok=await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);if(ok!==PermissionsAndroid.RESULTS.GRANTED){Alert.alert('Location permission','Allow location access so CaddieOS can use GPS.');return false}return true};
+ const setGPSPoint=p=>setGps({lat:p.coords.latitude.toFixed(6),lon:p.coords.longitude.toFixed(6),acc:Math.round(p.coords.accuracy)});
+ const getGPS=async()=>{if(!await allowGPS())return;Geolocation.getCurrentPosition(setGPSPoint,()=>Alert.alert('GPS','Could not get your current position.'),{enableHighAccuracy:true,timeout:15000,maximumAge:3000})};
+ const startLiveGPS=async()=>{if(!await allowGPS())return;if(gpsWatch.current!==null)Geolocation.clearWatch(gpsWatch.current);gpsWatch.current=Geolocation.watchPosition(setGPSPoint,()=>{}, {enableHighAccuracy:true,distanceFilter:2,interval:2500,fastestInterval:1200,maximumAge:1500});setGpsLive(true)};
+ const stopLiveGPS=()=>{if(gpsWatch.current!==null){Geolocation.clearWatch(gpsWatch.current);gpsWatch.current=null}setGpsLive(false)};"""
+          must(oldgps,newgps,'live GPS engine')
+          # Cleanup live watcher on app unmount without disturbing Voice cleanup.
+          must("return()=>{active=false;Voice.destroy().then(Voice.removeAllListeners).catch(()=>{})};","return()=>{active=false;if(gpsWatch.current!==null)Geolocation.clearWatch(gpsWatch.current);Voice.destroy().then(Voice.removeAllListeners).catch(()=>{})};",'GPS cleanup')
+
+          must("{page==='ROUND'&&<Round hole={hole} setHole={setHole} result={result} units={units} gps={gps} getGPS={getGPS} targetDistances={targetDistances} open={open}/>} ","{page==='ROUND'&&<Round hole={hole} setHole={setHole} result={result} units={units} gps={gps} gpsLive={gpsLive} startLiveGPS={startLiveGPS} stopLiveGPS={stopLiveGPS} targetDistances={targetDistances} open={open}/>} ",'Round props')
+          must("{page==='COURSE'&&<Course {...{course,setCourse,tee,setTee,hole,setHole,gps,getGPS,markTarget,currentTarget,open,setTargets}}/>}","{page==='COURSE'&&<Course {...{course,setCourse,tee,setTee,hole,setHole,gps,getGPS,markTarget,currentTarget,open,targets,setTargets,savedCourses,setSavedCourses}}/>}",'Course props')
+
+          round_rx=r"function Round\(\{hole,setHole,result,units,gps,getGPS,targetDistances,open\}\)\{.*?\nfunction Caddie"
+          round_new="""function Round({hole,setHole,result,units,gps,gpsLive,startLiveGPS,stopLiveGPS,targetDistances,open}){const holes=Array.from({length:18},(_,i)=>String(i+1));return <><Title kicker=\"ROUND\" title={`Hole ${hole}`} sub={gpsLive?`LIVE GPS${gps?.acc?` · ±${gps.acc} m`:''}`:'GPS ready when you are'}/><View style={{flexDirection:'row',flexWrap:'wrap',gap:5,marginBottom:9}}>{holes.map(x=><TouchableOpacity key={x} onPress={()=>setHole(x)} style={{width:'15.2%',minHeight:34,borderRadius:8,alignItems:'center',justifyContent:'center',backgroundColor:String(hole)===x?C.gold:'#153348',borderWidth:1,borderColor:String(hole)===x?C.gold:'#315064'}}><Text style={{fontSize:10,fontWeight:'900',color:String(hole)===x?C.dark:C.white}}>{x}</Text></TouchableOpacity>)}</View><View style={s.panel}><Text style={s.panelTitle}>GREEN DISTANCES</Text><View style={s.distanceRow}><Stat a={targetDistances.front??'—'} b=\"FRONT\"/><Stat a={targetDistances.center??'—'} b=\"CENTRE\"/><Stat a={targetDistances.back??'—'} b=\"BACK\"/></View><Text style={s.small}>{units==='METRES'?'metres':'yards'} · {gps?`${gps.lat}, ${gps.lon}`:'No position yet'}</Text></View><View style={s.panel}><Text style={s.panelTitle}>CADDIE RECOMMENDATION</Text><Text style={s.bigClub}>{result.club}</Text><Text style={s.cardSub}>Playing {result.y} {units==='METRES'?'m':'yd'}</Text></View><Btn text={gpsLive?'STOP LIVE GPS':'START LIVE GPS'} onPress={gpsLive?stopLiveGPS:startLiveGPS}/><Btn text=\"OPEN CADDIE\" onPress={()=>open('CADDIE')} outline/><Btn text=\"SCORE THIS HOLE\" onPress={()=>open('SCORE')} outline/></>}
+function Caddie"""
+          text,count=re.subn(round_rx,round_new,text,count=1,flags=re.S)
+          if count!=1: raise SystemExit('Build 60 patch marker missing: Round function')
+
+          # Course screen: auto-save selected/manual courses locally, compact directory, clear mapping GPS language.
+          must("function Course({course,setCourse,tee,setTee,hole,setHole,gps,getGPS,open,markTarget,currentTarget,setTargets}){","function Course({course,setCourse,tee,setTee,hole,setHole,gps,getGPS,open,markTarget,currentTarget,targets,setTargets,savedCourses,setSavedCourses}){",'Course signature')
+          course_state="const[q,setQ]=useState(''),[results,setResults]=useState([]),[searching,setSearching]=useState(false),[importing,setImporting]=useState(false);"
+          course_state_new=course_state+"\n useEffect(()=>{if(!course.trim())return;setSavedCourses(prev=>{const entry={name:course.trim(),tee,targets};const i=prev.findIndex(x=>x.name.toLowerCase()===entry.name.toLowerCase());const next=i>=0?prev.map((x,k)=>k===i?entry:x):[entry,...prev].slice(0,50);return JSON.stringify(next)===JSON.stringify(prev)?prev:next})},[course,tee,targets]);\n const loadSaved=x=>{setCourse(x.name);setTee(x.tee||'White');setTargets(Array.isArray(x.targets)&&x.targets.length===18?x.targets:blankTargets());setHole('1');Alert.alert('Course loaded',`${x.name} loaded from your CaddieOS library.`)};"
+          must(course_state,course_state_new,'local course library')
+          must("<Panel><Label text=\"COURSE DIRECTORY\"/>","<Panel><Label text=\"COURSE DIRECTORY\"/>",'directory marker')
+          must("Search OpenGolfAPI, then save the selected course locally. Manual mapping remains available.","Search online or load a saved course. Tap a search result to import it.",'directory helper')
+          must("Contains data from OpenGolfAPI (opengolfapi.org).","OpenGolfAPI course directory.",'directory credit')
+          must("</Panel>\n <Panel><Label text=\"COURSE NAME\"/>","{savedCourses.length?<View style={{marginTop:6}}><Text style={s.panelTitle}>SAVED COURSES · {savedCourses.length}</Text><View style={s.chips}>{savedCourses.slice(0,6).map(x=><Chip key={x.name} active={x.name===course} text={x.name} onPress={()=>loadSaved(x)}/>)}</View></View>:null}</Panel>\n <Panel><Label text=\"COURSE NAME\"/>",'saved course panel')
+          must("⌖  GET GPS POSITION","⌖  GET MAPPING GPS",'mapping GPS label')
+          must("Stand at each point and save its GPS coordinate. Imported courses can still be corrected here.","Mapping GPS only: stand at Front, Centre and Back, then save each point.",'mapping helper')
+
+          app.write_text(text)
+
+          props=Path('CaddieOS/android/gradle.properties')
+          ptxt=props.read_text().replace('newArchEnabled=true','newArchEnabled=false')
+          if 'newArchEnabled=false' not in ptxt: ptxt+='\nnewArchEnabled=false\n'
+          props.write_text(ptxt)
+
+          gradle=Path('CaddieOS/android/app/build.gradle')
+          g=gradle.read_text()
+          g=re.sub(r'versionCode\s+\d+','versionCode 60',g)
+          g=re.sub(r'versionName\s+"[^"]+"','versionName "1.0.60"',g)
+          gradle.write_text(g)
+
+          manifest=Path('CaddieOS/android/app/src/main/AndroidManifest.xml')
+          m=manifest.read_text()
+          perms='<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.INTERNET" />'
+          if 'android.permission.RECORD_AUDIO' not in m:
+              m=m.replace('<application',perms+'\n    <application',1)
+          elif 'android.permission.INTERNET' not in m:
+              m=m.replace('<application','<uses-permission android:name="android.permission.INTERNET" />\n    <application',1)
+          manifest.write_text(m)
+          PY
+
+      - name: Validate Build 60 upgrade
+        run: |
+          test -s CaddieOS/compactWorkingPages.js
+          grep -q "versionCode 60" CaddieOS/android/app/build.gradle
+          grep -q "START LIVE GPS" CaddieOS/App.js
+          grep -q "Array.from({length:18}" CaddieOS/App.js
+          grep -q "SAVED COURSES" CaddieOS/App.js
+          grep -q "GET MAPPING GPS" CaddieOS/App.js
+          grep -q "newArchEnabled=false" CaddieOS/android/gradle.properties
+
+      - name: Build release APK
+        working-directory: CaddieOS/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Collect Build 60 APK
+        run: |
+          mkdir -p output
+          cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-60.apk
+
+      - name: Upload Build 60 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CaddieOS-Build-60
+          path: output/CaddieOS-Build-60.apk
+          if-no-files-found: error
+          retention-days: 14
