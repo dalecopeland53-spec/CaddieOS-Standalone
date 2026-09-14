@@ -74,6 +74,7 @@ jobs:
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
+          cp compactWorkingPages.js CaddieOS/compactWorkingPages.js
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -116,6 +117,7 @@ jobs:
 
       - name: Validate tab crash repair
         run: |
+          test -s CaddieOS/compactWorkingPages.js
           grep -q "const Panel=({children})" CaddieOS/App.js
           grep -q "const Label=({text})" CaddieOS/App.js
           grep -q "const Chip=({active,text,onPress})" CaddieOS/App.js
