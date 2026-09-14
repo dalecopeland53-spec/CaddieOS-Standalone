@@ -1,0 +1,79 @@
+name: Apply responsive safe-area repair
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-responsive-safe-area.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply real device safe-area sizing
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('App.js')
+          s=p.read_text()
+
+          old="import{Alert,PermissionsAndroid,Platform,SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,TextInput,TouchableOpacity,View,useWindowDimensions}from'react-native';"
+          new="import{Alert,PermissionsAndroid,Platform,ScrollView,StatusBar,StyleSheet,Text,TextInput,TouchableOpacity,View,useWindowDimensions}from'react-native';\nimport{SafeAreaView}from'react-native-safe-area-context';"
+          if old not in s:
+              raise SystemExit('React Native import signature not found')
+          s=s.replace(old,new,1)
+
+          old="safe:{flex:1,backgroundColor:C.bg,paddingTop:Platform.OS==='android'?(StatusBar.currentHeight||24):0}"
+          new="safe:{flex:1,backgroundColor:C.bg}"
+          if old not in s:
+              raise SystemExit('old safe style not found')
+          s=s.replace(old,new,1)
+
+          old="bottomNav:{minHeight:76,flexDirection:'row',backgroundColor:C.dark,borderTopWidth:1,borderTopColor:'#234359',paddingTop:6,paddingBottom:Platform.OS==='android'?38:7}"
+          new="bottomNav:{minHeight:64,flexDirection:'row',backgroundColor:C.dark,borderTopWidth:1,borderTopColor:'#234359',paddingTop:6,paddingBottom:7}"
+          if old not in s:
+              raise SystemExit('old bottomNav style not found')
+          s=s.replace(old,new,1)
+
+          old="bottomNavCompact:{minHeight:72,paddingTop:4,paddingBottom:Platform.OS==='android'?36:5}"
+          new="bottomNavCompact:{minHeight:60,paddingTop:4,paddingBottom:5}"
+          if old not in s:
+              raise SystemExit('old compact bottomNav style not found')
+          s=s.replace(old,new,1)
+
+          p.write_text(s)
+
+          wf=Path('.github/workflows/eas-android-preview.yml')
+          w=wf.read_text()
+          old="npm install --save @react-native-voice/voice@3.2.4 react-native-tts @react-native-community/geolocation @react-native-async-storage/async-storage"
+          new="npm install --save @react-native-voice/voice@3.2.4 react-native-tts @react-native-community/geolocation @react-native-async-storage/async-storage react-native-safe-area-context"
+          if old not in w:
+              raise SystemExit('dependency install line not found')
+          w=w.replace(old,new,1)
+          wf.write_text(w)
+          PY
+
+      - name: Verify repair
+        run: |
+          grep -q "react-native-safe-area-context" App.js
+          grep -q "react-native-safe-area-context" .github/workflows/eas-android-preview.yml
+          ! grep -q "paddingBottom:Platform.OS==='android'?38:7" App.js
+          ! grep -q "paddingTop:Platform.OS==='android'?(StatusBar.currentHeight||24):0" App.js
+
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js .github/workflows/eas-android-preview.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "Use responsive device safe areas"
+          git push
