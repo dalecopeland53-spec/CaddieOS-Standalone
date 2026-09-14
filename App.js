@@ -43,7 +43,24 @@ function Shell(){const{height,width}=useWindowDimensions(),insets=useSafeAreaIns
  const result=useMemo(()=>{const y=playsLike(distance,wind,elev,lie,windDir,units),c=nearestClub(y,bag,units);return{y,club:c[0],carry:c[1]}},[distance,wind,elev,lie,windDir,units,bag]);
  const caddieText=useMemo(()=>advice(result.y,result.club,lie,wind,windDir,elev,units),[result,lie,wind,windDir,elev,units]);
  const idx=Math.min(17,Math.max(0,n(hole)-1)),currentTarget=targets[idx],gp=gps?{lat:Number(gps.lat),lon:Number(gps.lon)}:null,targetDistances={front:haversine(gp,currentTarget?.front,units),center:haversine(gp,currentTarget?.center,units),back:haversine(gp,currentTarget?.back,units)};
- useEffect(()=>{(async()=>{try{const raw=await AsyncStorage.getItem(STORAGE);if(raw){const x=JSON.parse(raw);Object.entries({units:setUnits,player:setPlayer,email:setEmail,handicap:setHandicap,bag:setBag,course:setCourse,tee:setTee,targets:setTargets,scores:setScores,putts:setPutts,gir:setGir,fw:setFw,pen:setPen,notes:setNotes,roundLog:setRoundLog,practiceHistory:setPracticeHistory,routineSteps:setRoutineSteps,courseInfo:setCourseInfo}).forEach(([k,set])=>x[k]!==undefined&&set(x[k]))}}catch{};Tts.setDefaultLanguage('en-AU').catch(()=>{});Voice.onSpeechStart=()=>setListening(true);Voice.onSpeechEnd=()=>setListening(false);Voice.onSpeechError=()=>{setListening(false);setHeard('Microphone did not hear that. Tap and try again.')};Voice.onSpeechResults=e=>{const t=e.value?.[0]||'';setHeard(t?`Heard: ${t}`:'Nothing heard');if(t){parseSpeech(t,{setDistance,setWind,setWindDir,setElev,setLie});setPendingSpeak(true)}};return()=>{Voice.destroy().then(Voice.removeAllListeners).catch(()=>{})}},[]);
+ useEffect(()=>{
+  let active=true;
+  (async()=>{
+   try{
+    const raw=await AsyncStorage.getItem(STORAGE);
+    if(active&&raw){
+     const x=JSON.parse(raw);
+     Object.entries({units:setUnits,player:setPlayer,email:setEmail,handicap:setHandicap,bag:setBag,course:setCourse,tee:setTee,targets:setTargets,scores:setScores,putts:setPutts,gir:setGir,fw:setFw,pen:setPen,notes:setNotes,roundLog:setRoundLog,practiceHistory:setPracticeHistory,routineSteps:setRoutineSteps,courseInfo:setCourseInfo}).forEach(([k,set])=>x[k]!==undefined&&set(x[k]));
+    }
+   }catch{}
+  })();
+  Tts.setDefaultLanguage('en-AU').catch(()=>{});
+  Voice.onSpeechStart=()=>setListening(true);
+  Voice.onSpeechEnd=()=>setListening(false);
+  Voice.onSpeechError=()=>{setListening(false);setHeard('Microphone did not hear that. Tap and try again.')};
+  Voice.onSpeechResults=e=>{const t=e.value?.[0]||'';setHeard(t?`Heard: ${t}`:'Nothing heard');if(t){parseSpeech(t,{setDistance,setWind,setWindDir,setElev,setLie});setPendingSpeak(true)}};
+  return()=>{active=false;Voice.destroy().then(Voice.removeAllListeners).catch(()=>{})};
+ },[]);
  useEffect(()=>{if(!pendingSpeak)return;const z=setTimeout(()=>{Tts.stop().catch(()=>{});Tts.speak(caddieText);setPendingSpeak(false)},180);return()=>clearTimeout(z)},[pendingSpeak,caddieText]);
  useEffect(()=>{AsyncStorage.setItem(STORAGE,JSON.stringify({units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo})).catch(()=>{})},[units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo]);
  const ask=async()=>{try{if(Platform.OS==='android'){const ok=await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);if(ok!==PermissionsAndroid.RESULTS.GRANTED)return Alert.alert('Microphone permission','Allow microphone access so CaddieOS can hear you.')}if(listening){await Voice.stop();setListening(false)}else{setHeard('Listening…');await Voice.start('en-AU')}}catch{setListening(false);Alert.alert('Microphone','Unable to start speech recognition.')}};
