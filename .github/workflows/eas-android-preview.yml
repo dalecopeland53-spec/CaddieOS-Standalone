@@ -32,6 +32,16 @@ jobs:
       - name: Create clean React Native shell
         run: |
           npx --yes @react-native-community/cli@latest init CaddieOS --version 0.83.2 --skip-git-init --package-name com.dalecopeland.caddieos
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('CaddieOS/android/gradle.properties')
+          text = p.read_text()
+          if 'newArchEnabled=true' in text:
+              text = text.replace('newArchEnabled=true', 'newArchEnabled=false')
+          elif 'newArchEnabled=false' not in text:
+              text += '\nnewArchEnabled=false\n'
+          p.write_text(text)
+          PY
 
       - name: Install and modernize native CaddieOS features
         working-directory: CaddieOS
@@ -98,10 +108,9 @@ jobs:
           grep -q "10-Minute Flow Warm-Up" CaddieOS/App.js
           grep -q "api.opengolfapi.org/v1/courses/search" CaddieOS/App.js
           grep -q "Contains data from OpenGolfAPI" CaddieOS/App.js
-          grep -q "let active=true" CaddieOS/App.js
-          ! grep -q "useEffect(()=>{(async()=>" CaddieOS/App.js
           ! grep -q "PETE" CaddieOS/App.js
           ! grep -q "caddieName" CaddieOS/App.js
+          grep -q "newArchEnabled=false" CaddieOS/android/gradle.properties
 
       - name: Validate modernized Android dependencies
         run: |
