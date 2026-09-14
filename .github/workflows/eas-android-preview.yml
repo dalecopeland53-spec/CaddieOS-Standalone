@@ -31,7 +31,7 @@ jobs:
 
       - name: Create clean React Native shell
         run: |
-          npx --yes @react-native-community/cli@latest init CaddieOS --version 0.83.2 --skip-git-init --package-name com.dalecopeland.caddieos
+          npx --yes @react-native-community/cli@latest init CaddieOS --version 0.81.6 --skip-git-init --package-name com.dalecopeland.caddieos
           python3 - <<'PY'
           from pathlib import Path
           p = Path('CaddieOS/android/gradle.properties')
@@ -102,6 +102,7 @@ jobs:
         run: |
           test -s CaddieOS/App.js
           test -s CaddieOS/index.js
+          grep -q '"react-native": "0.81.6"' CaddieOS/package.json
           grep -q "@react-native-voice/voice" CaddieOS/App.js
           grep -q "react-native-safe-area-context" CaddieOS/App.js
           grep -q "POST-ROUND CADDIE" CaddieOS/App.js
