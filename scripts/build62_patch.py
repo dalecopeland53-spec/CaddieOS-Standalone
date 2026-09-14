@@ -8,16 +8,19 @@ t=t.replace('TOUR-LEVEL DECISIONS · YOUR GAME</Text>','TOUR-LEVEL DECISIONS · 
 # Current Hole: replace legacy vertical mapping block with approved boxed layout.
 old='''<Panel><View style={s.holeTop}><View><Text style={s.holeLabel}>CURRENT HOLE</Text><Text style={s.holeBig}>{hole}</Text></View><View style={s.holeBtns}><Mini text="−" onPress={()=>setHole(String(Math.max(1,n(hole)-1)))}/><Mini text="+" onPress={()=>setHole(String(Math.min(18,n(hole)+1)))}/></View></View><TouchableOpacity style={s.gps} onPress={getGPS}><Text style={s.gpsText}>⌖  GET MAPPING GPS</Text></TouchableOpacity>{gps&&<Text style={s.gpsLine}>{gps.lat}, {gps.lon} · ±{gps.acc} m</Text>}<View style={s.divider}/><Text style={s.subTitle}>MAP GREEN · HOLE {hole}</Text><Text style={s.smallGrey}>Mapping GPS only: stand at Front, Centre and Back, then save each point.</Text><View style={s.targetGrid}>'''
 new='''<Panel><View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><Text style={[s.holeLabel,{fontSize:18,color:C.navy}]}>CURRENT HOLE</Text><View style={{borderWidth:1,borderColor:C.gold,borderRadius:10,backgroundColor:C.navy,paddingHorizontal:10,paddingVertical:5}}><Text style={{color:C.gold2,fontWeight:'900',fontSize:10}}>Hole {hole} of 18</Text></View></View><View style={{flexDirection:'row',gap:9,alignItems:'stretch'}}><View style={{width:116,minHeight:126,borderRadius:15,backgroundColor:C.navy,borderWidth:2,borderColor:C.gold,alignItems:'center',justifyContent:'center'}}><Text style={{color:C.white,fontWeight:'900',fontSize:13}}>HOLE</Text><Text style={{color:C.white,fontWeight:'900',fontSize:64,lineHeight:70}}>{hole}</Text></View><View style={{width:54,gap:8}}><Mini text="+" onPress={()=>setHole(String(Math.min(18,n(hole)+1)))}/><Mini text="−" onPress={()=>setHole(String(Math.max(1,n(hole)-1)))}/></View><View style={{flex:1,gap:7}}><TouchableOpacity style={[s.gps,{marginTop:0,flex:1,justifyContent:'center'}]} onPress={getGPS}><Text style={s.gpsText}>⌖  GET MAPPING GPS</Text></TouchableOpacity><Text style={[s.smallGrey,{fontSize:10}]}>Stand at Front, Centre and Back, then save each point.</Text>{gps&&<Text style={[s.gpsLine,{fontSize:9}]}>{gps.lat}, {gps.lon} · ±{gps.acc} m</Text>}</View></View><View style={s.divider}/><Text style={s.subTitle}>MAP GREEN · HOLE {hole}</Text><View style={s.targetGrid}>'''
-if old not in t: raise SystemExit('Build 62 current-hole marker missing')
-t=t.replace(old,new,1)
+if old in t:
+ t=t.replace(old,new,1)
+elif 'Hole {hole} of 18' not in t:
+ raise SystemExit('Build 62 current-hole layout missing')
 # Tighten course cards/search/saved row without reducing tap targets.
 t=t.replace("maxWidth:145","maxWidth:118",1)
 t=t.replace("savedCourses.slice(0,8)","savedCourses.slice(0,5)",1)
 # Make wind impossible to miss: dedicated visual meter on Round, separate from map overlay.
 marker='<View style={s.panel}><Text style={s.panelTitle}>GREEN DISTANCES</Text>'
 windbox='''<View style={[s.panel,{padding:10}]}><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}><View><Text style={s.panelTitle}>LIVE WIND</Text><Text style={{fontSize:12,fontWeight:'900',color:C.muted}}>{windType}</Text></View><View style={{width:58,height:58,borderRadius:29,backgroundColor:C.navy,borderWidth:2,borderColor:C.gold,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:32,lineHeight:34,fontWeight:'900',color:C.gold2}}>{arrow}</Text></View><View style={{alignItems:'flex-end'}}><Text style={{fontSize:28,fontWeight:'900',color:C.navy}}>{wind||0}</Text><Text style={{fontSize:11,fontWeight:'900',color:C.muted}}>{units==='METRES'?'km/h':'mph'}</Text></View></View></View>'''
-if marker not in t: raise SystemExit('Build 62 wind meter marker missing')
-t=t.replace(marker,windbox+marker,1)
+if 'LIVE WIND' not in t:
+ if marker not in t: raise SystemExit('Build 62 wind meter marker missing')
+ t=t.replace(marker,windbox+marker,1)
 # Version/build identity and native mic label repair.
 t=t.replace('versionCode 61','versionCode 62')
 # Voice button wording: tapping should clearly start recognition, not just say Caddie.
