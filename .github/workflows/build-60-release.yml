@@ -1,0 +1,95 @@
+name: CaddieOS Build 60 Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build60:
+    name: Build 60 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Create native shell
+        run: npx --yes @react-native-community/cli@latest init CaddieOS --version 0.81.6 --skip-git-init --package-name com.dalecopeland.caddieos
+
+      - name: Install native features
+        working-directory: CaddieOS
+        run: npm install --save @react-native-voice/voice@3.2.4 react-native-tts@4.1.1 @react-native-community/geolocation@3.4.0 @react-native-async-storage/async-storage@2.2.0 react-native-safe-area-context@5.6.2
+
+      - name: Repair legacy Android libraries
+        working-directory: CaddieOS
+        run: |
+          cat > node_modules/@react-native-voice/voice/android/build.gradle <<'GRADLE'
+          apply plugin: 'com.android.library'
+          android {
+              namespace 'com.wenkesj.voice'
+              compileSdk 36
+              defaultConfig { minSdk 24; targetSdk 36 }
+          }
+          repositories { google(); mavenCentral() }
+          dependencies { implementation 'com.facebook.react:react-android' }
+          GRADLE
+          cat > node_modules/react-native-tts/android/build.gradle <<'GRADLE'
+          apply plugin: 'com.android.library'
+          android {
+              namespace 'net.no_mad.tts'
+              compileSdk 36
+              defaultConfig { minSdk 24; targetSdk 36 }
+          }
+          repositories { google(); mavenCentral() }
+          dependencies { implementation 'com.facebook.react:react-android' }
+          GRADLE
+          python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
+
+      - name: Install Build 60 source
+        run: |
+          cp App.js CaddieOS/App.js
+          cp index.js CaddieOS/index.js
+          cp compactWorkingPages.js CaddieOS/compactWorkingPages.js
+          python3 scripts/build60_patch.py
+
+      - name: Validate Build 60 source
+        run: |
+          grep -q "START LIVE GPS" CaddieOS/App.js
+          grep -q "SAVED COURSES" CaddieOS/App.js
+          grep -q "GET MAPPING GPS" CaddieOS/App.js
+          grep -q "versionCode 60" CaddieOS/android/app/build.gradle
+          grep -q "newArchEnabled=false" CaddieOS/android/gradle.properties
+
+      - name: Build release APK
+        working-directory: CaddieOS/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Collect APK
+        run: |
+          mkdir -p output
+          cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-60.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CaddieOS-Build-60
+          path: output/CaddieOS-Build-60.apk
+          if-no-files-found: error
+          retention-days: 14
