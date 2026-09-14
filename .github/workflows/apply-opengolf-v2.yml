@@ -1,0 +1,31 @@
+name: Apply OpenGolfAPI v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/integrate_opengolf.py'
+      - '.github/workflows/apply-opengolf-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Integrate OpenGolfAPI into Course screen
+        run: python3 scripts/integrate_opengolf.py
+      - name: Verify integration
+        run: |
+          grep -q "api.opengolfapi.org/v1/courses/search" App.js
+          grep -q "Contains data from OpenGolfAPI" App.js
+          grep -q "setTargets" App.js
+      - name: Commit integrated source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "Integrate OpenGolfAPI course search and offline save" || exit 0
+          git push
