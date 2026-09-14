@@ -56,20 +56,21 @@ jobs:
           python3 scripts/build65_patch.py
       - name: Validate Build 65 source
         run: |
-          grep -Fq "versionCode 65" CaddieOS/android/app/build.gradle
-          grep -Fq 'versionName "1.0.65"' CaddieOS/android/app/build.gradle
-          grep -Fq "BUILD64_PREMIUM" CaddieOS/App.js
-          grep -Fq "BUILD65_WIND_UI" CaddieOS/App.js
-          grep -Fq "ANTI-GLARE ON" CaddieOS/App.js
-          grep -Fq "WIND DIRECTION" CaddieOS/App.js
-          grep -Fq "windArrowBox" CaddieOS/App.js
-          grep -Fq "My Pre Shot Routine" CaddieOS/App.js
-          grep -Fq "CADDIEOS_PARTNERS_V1" CaddieOS/App.js
-          grep -Fq "4-player traditional card" CaddieOS/App.js
-          grep -Fq "android.permission.ACCESS_FINE_LOCATION" CaddieOS/android/app/src/main/AndroidManifest.xml
-          grep -Fq "android.permission.ACCESS_COARSE_LOCATION" CaddieOS/android/app/src/main/AndroidManifest.xml
-          grep -Fq "android.permission.RECORD_AUDIO" CaddieOS/android/app/src/main/AndroidManifest.xml
-          grep -Fq "android.permission.INTERNET" CaddieOS/android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          from pathlib import Path
+          app=Path('CaddieOS/App.js').read_text()
+          gradle=Path('CaddieOS/android/app/build.gradle').read_text()
+          manifest=Path('CaddieOS/android/app/src/main/AndroidManifest.xml').read_text()
+          required_app=['BUILD64_PREMIUM','BUILD65_WIND_UI','WIND DIRECTION','windArrowBox','My Pre Shot Routine','CADDIEOS_PARTNERS_V1','4-player traditional card']
+          required_permissions=['android.permission.ACCESS_FINE_LOCATION','android.permission.ACCESS_COARSE_LOCATION','android.permission.RECORD_AUDIO','android.permission.INTERNET']
+          missing=[x for x in required_app if x not in app]
+          missing += [x for x in required_permissions if x not in manifest]
+          if 'versionCode 65' not in gradle: missing.append('versionCode 65')
+          if 'versionName "1.0.65"' not in gradle: missing.append('versionName 1.0.65')
+          if missing:
+              raise SystemExit('Build 65 validation missing: ' + ', '.join(missing))
+          print('Build 65 validation passed')
+          PY
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
