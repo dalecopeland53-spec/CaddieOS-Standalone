@@ -1,0 +1,67 @@
+name: Apply S24 Ultra sizing fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s24-sizing-fix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  patch-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply global sizing fix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('App.js')
+          s=p.read_text()
+          reps={
+          "safe:{flex:1,backgroundColor:C.bg,paddingTop:Platform.OS==='android'?(StatusBar.currentHeight||24):0}":"safe:{flex:1,backgroundColor:C.bg,paddingTop:Platform.OS==='android'?(StatusBar.currentHeight||24):0,paddingBottom:Platform.OS==='android'?34:0}",
+          "bodyCompact:{paddingHorizontal:9,paddingTop:7,paddingBottom:12}":"bodyCompact:{paddingHorizontal:9,paddingTop:5,paddingBottom:8}",
+          "headerCompact:{height:64,paddingHorizontal:9}":"headerCompact:{height:56,paddingHorizontal:9}",
+          "bottomNav:{minHeight:76,flexDirection:'row',backgroundColor:C.dark,borderTopWidth:1,borderTopColor:'#234359',paddingTop:6,paddingBottom:Platform.OS==='android'?38:7}":"bottomNav:{minHeight:66,flexDirection:'row',backgroundColor:C.dark,borderTopWidth:1,borderTopColor:'#234359',paddingTop:5,paddingBottom:6}",
+          "bottomNavCompact:{minHeight:72,paddingTop:4,paddingBottom:Platform.OS==='android'?36:5}":"bottomNavCompact:{minHeight:64,paddingTop:4,paddingBottom:5}",
+          "homeWelcome:{alignItems:'center',marginBottom:9}":"homeWelcome:{alignItems:'center',marginBottom:5}",
+          "homeStart:{flexDirection:'row',alignItems:'center',backgroundColor:'#0D4B78',borderWidth:1,borderColor:C.gold,borderRadius:14,padding:13,marginBottom:9}":"homeStart:{flexDirection:'row',alignItems:'center',backgroundColor:'#0D4B78',borderWidth:1,borderColor:C.gold,borderRadius:14,padding:10,marginBottom:6}",
+          "homeStartBall:{width:42,height:42,borderRadius:21": "homeStartBall:{width:38,height:38,borderRadius:19",
+          "homeStartTitle:{fontSize:20": "homeStartTitle:{fontSize:18",
+          "grid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:8}":"grid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:6}",
+          "tile:{width:'48.7%',minHeight:88,backgroundColor:C.panel,borderWidth:1,borderColor:C.gold,borderRadius:12,padding:10": "tile:{width:'48.7%',minHeight:78,backgroundColor:C.panel,borderWidth:1,borderColor:C.gold,borderRadius:12,padding:7",
+          "tileIcon:{fontSize:24": "tileIcon:{fontSize:21",
+          "roundSummaryBar:{marginTop:8,backgroundColor:C.panel,borderWidth:1,borderColor:C.line,borderRadius:12,padding:10}":"roundSummaryBar:{marginTop:6,backgroundColor:C.panel,borderWidth:1,borderColor:C.line,borderRadius:12,padding:8}"
+          }
+          missing=[]
+          for a,b in reps.items():
+              if a not in s:
+                  missing.append(a)
+              else:
+                  s=s.replace(a,b,1)
+          if missing:
+              raise SystemExit('Sizing patch anchors missing: '+repr(missing))
+          p.write_text(s)
+          PY
+      - name: Commit sizing fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "Fix S24 Ultra screen sizing" || exit 0
+          git push origin main
+      - name: Trigger Android APK build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/eas-android-preview.yml/dispatches \
+            -d '{"ref":"main"}'
