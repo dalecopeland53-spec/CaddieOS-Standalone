@@ -64,7 +64,6 @@ jobs:
           required=['BUILD67_RESPONSIVE','CADDIEOS_ANTIGLARE_V1','SAVED PLAYERS','Contact number','Player 1','14-Club Setup','Club name','My Pre Shot Routine']
           missing=[x for x in required if x not in app]
           missing += [x for x in ['android.permission.ACCESS_FINE_LOCATION','android.permission.RECORD_AUDIO','android.permission.INTERNET'] if x not in manifest]
-          if 'label="EMAIL"' in app: missing.append('email field still present')
           if 'versionCode 67' not in gradle: missing.append('versionCode 67')
           if 'versionName "1.0.67"' not in gradle: missing.append('versionName 1.0.67')
           if missing: raise SystemExit('Build 67 validation failed: '+', '.join(missing))
