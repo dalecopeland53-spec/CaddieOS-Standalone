@@ -59,21 +59,25 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           app=Path('CaddieOS/App.js').read_text()
           gradle=Path('CaddieOS/android/app/build.gradle').read_text()
           manifest=Path('CaddieOS/android/app/src/main/AndroidManifest.xml').read_text()
           required_app=['BUILD64_PREMIUM','BUILD65_WIND_UI','BUILD66_LOGIN','windArrowBox','PLAYER PROFILE','ENTER CADDIEOS','No email required','My Pre Shot Routine','CADDIEOS_PARTNERS_V1','4-player traditional card']
-          forbidden_login=['label=\"EMAIL\"','CONTINUE WITH GOOGLE','CONTINUE WITH APPLE']
           required_permissions=['android.permission.ACCESS_FINE_LOCATION','android.permission.ACCESS_COARSE_LOCATION','android.permission.RECORD_AUDIO','android.permission.INTERNET']
           missing=[x for x in required_app if x not in app]
           missing += [x for x in required_permissions if x not in manifest]
-          bad=[x for x in forbidden_login if x in app]
+          welcome=re.search(r'function Welcome\([^)]*\)\{return .*?\}\nfunction Home',app,re.S)
+          login=welcome.group(0) if welcome else ''
+          forbidden_login=['label="EMAIL"','CONTINUE WITH GOOGLE','CONTINUE WITH APPLE','label="PASSWORD"']
+          bad=[x for x in forbidden_login if x in login]
+          if not welcome: missing.append('approved Welcome component')
           if bad: missing += ['obsolete login still present: '+x for x in bad]
           if 'versionCode 66' not in gradle: missing.append('versionCode 66')
-          if 'versionName \"1.0.66\"' not in gradle: missing.append('versionName 1.0.66')
+          if 'versionName "1.0.66"' not in gradle: missing.append('versionName 1.0.66')
           if missing:
               raise SystemExit('Build 66 validation failed: ' + ', '.join(missing))
-          print('Build 66 validation passed: approved login, no email/social login')
+          print('Build 66 validation passed: approved login only; settings/course email fields preserved')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
