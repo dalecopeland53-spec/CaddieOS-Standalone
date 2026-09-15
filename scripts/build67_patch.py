@@ -1,27 +1,35 @@
 from pathlib import Path
 import re
-APP=Path('CaddieOS/App.js'); s=APP.read_text()
+
+APP=Path('CaddieOS/App.js')
+s=APP.read_text()
+
+# Build 67 is a functional completion pass only. Preserve the approved
+# Build 66 / compact S24 UI instead of replacing screen components/styles.
 if 'BUILD67_RESPONSIVE' not in s:
- s=s.replace('const BUILD66_LOGIN=true;','const BUILD66_LOGIN=true;\nconst BUILD67_RESPONSIVE=true;',1)
-# persist global anti-glare
-s=s.replace(" const[antiGlare,setAntiGlare]=useState(true);"," const[antiGlare,setAntiGlare]=useState(true);\n useEffect(()=>{AsyncStorage.getItem('CADDIEOS_ANTIGLARE_V1').then(v=>{if(v!==null)setAntiGlare(v==='true')}).catch(()=>{})},[]);\n useEffect(()=>{AsyncStorage.setItem('CADDIEOS_ANTIGLARE_V1',String(antiGlare)).catch(()=>{})},[antiGlare]);",1)
-# compact header label
-s=s.replace("{antiGlare?'ANTI-GLARE ON':'ANTI-GLARE'}","{antiGlare?'GLARE ON':'GLARE OFF'}")
-# Settings: no email; saved players include contact
-s=re.sub(r"function Settings\([^)]*\)\{.*?\}\nfunction Summary",'''function Settings({player,setPlayer,handicap,setHandicap,units,setUnits,signOut}){const[partners,setPartners]=useState([{name:'',handicap:'',contact:''},{name:'',handicap:'',contact:''},{name:'',handicap:'',contact:''}]);useEffect(()=>{AsyncStorage.getItem('CADDIEOS_PARTNERS_V1').then(v=>{if(v){const a=JSON.parse(v);setPartners(a.map(p=>({...p,contact:p.contact||''})))}}).catch(()=>{})},[]);const changePartner=(i,k,v)=>{const next=partners.map((p,j)=>j===i?{...p,[k]:v}:p);setPartners(next);AsyncStorage.setItem('CADDIEOS_PARTNERS_V1',JSON.stringify(next)).catch(()=>{})};return <><Title kicker="SETTINGS" title="Player Settings"/><Field label="PLAYER" value={player} onChangeText={setPlayer}/><Field label="HANDICAP" value={handicap} onChangeText={setHandicap} keyboardType="numeric"/><Text style={s.label}>UNITS</Text><Seg items={['METRES','IMPERIAL']} value={units} setValue={setUnits}/><View style={s.panel}><Text style={s.panelTitle}>SAVED PLAYERS</Text>{partners.map((p,i)=><View key={i} style={s.savedPlayer}><TextInput style={[s.input,s.savedName]} value={p.name} onChangeText={v=>changePartner(i,'name',v)} placeholder={`Player ${i+2}`}/><TextInput style={[s.input,s.savedHcp]} value={p.handicap} onChangeText={v=>changePartner(i,'handicap',v)} placeholder="HCP" keyboardType="numeric"/><TextInput style={[s.input,s.savedPhone]} value={p.contact} onChangeText={v=>changePartner(i,'contact',v)} placeholder="Contact number" keyboardType="phone-pad"/></View>)}</View><Btn text="SIGN OUT" onPress={signOut} outline/></>}\nfunction Summary''',s,count=1,flags=re.S)
-s=s.replace("<Settings {...{player,setPlayer,email,setEmail,handicap,setHandicap,units,setUnits,signOut:()=>setEntered(false)}}/>","<Settings {...{player,setPlayer,handicap,setHandicap,units,setUnits,signOut:()=>setEntered(false)}}/>")
-# Bag: user-defined clubs only
-s=re.sub(r"function Bag\(\{bag,setBag,units\}\)\{.*?\}\nfunction Course",'''function Bag({bag,setBag,units}){const[newName,setNewName]=useState(''),[newDist,setNewDist]=useState('');const add=()=>{const name=newName.trim();if(!name)return;if(bag.length>=14)return Alert.alert('My Bag','Maximum 14 clubs.');if(bag.some(x=>x[0].toLowerCase()===name.toLowerCase()))return Alert.alert('My Bag','That club is already in your bag.');setBag([...bag,[name,units==='METRES'?n(newDist):n(newDist)/1.09361]]);setNewName('');setNewDist('')};const exact=(i,v)=>setBag(bag.map((x,k)=>k===i?[x[0],Math.max(0,units==='METRES'?n(v):n(v)/1.09361)]:x));return <><Title kicker="MY BAG" title="14-Club Setup" sub={`${bag.length}/14 clubs`}/><View style={s.addClubRow}><TextInput style={[s.input,s.clubNameInput]} value={newName} onChangeText={setNewName} placeholder="Club name"/><TextInput style={[s.input,s.clubDistInput]} value={newDist} onChangeText={setNewDist} placeholder={units==='METRES'?'m':'yd'} keyboardType="numeric"/><TouchableOpacity style={s.addClubBtn} onPress={add}><Text style={s.addClubText}>+ ADD</Text></TouchableOpacity></View>{bag.map((x,i)=><View style={s.bagRow67} key={`${x[0]}-${i}`}><Text numberOfLines={1} style={s.bagClub67}>{x[0]}</Text><TextInput style={s.bagInput67} value={String(yd(x[1],units))} onChangeText={v=>exact(i,v)} keyboardType="numeric"/><Text style={s.unit67}>{units==='METRES'?'m':'yd'}</Text><TouchableOpacity style={s.remove67} onPress={()=>setBag(bag.filter((_,k)=>k!==i))}><Text style={s.remove67Text}>×</Text></TouchableOpacity></View>)}</>}\nfunction Course''',s,count=1,flags=re.S)
-# scorecard: Player 1-4 and fit nine columns without horizontal scroll
-s=s.replace('<Text style={s.scoreLabel}>YOU</Text>','<Text style={s.scoreLabel}>Player 1</Text>')
-s=s.replace('<ScrollView horizontal showsHorizontalScrollIndicator={false}><View>','<View>',2).replace('</View></ScrollView></View>','</View></View>',2)
-# compact course mapping block by replacing oversized instructional copy where present
-s=s.replace('Mapping GPS only: stand at Front, Centre and Back, then save each point.','Stand at each green point and save GPS.')
-# global compact overrides
-insert=",body:{paddingHorizontal:10,paddingTop:8,paddingBottom:78},header:{minHeight:74,paddingHorizontal:12,paddingVertical:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},brand:{fontSize:28,fontWeight:'900',letterSpacing:1.5,color:C.navy},brandSub:{fontSize:9,fontWeight:'800',letterSpacing:1.2,color:C.navy},antiBtn:{maxWidth:104,paddingHorizontal:8,paddingVertical:7,borderRadius:16,borderWidth:1,borderColor:C.blue},anti:{fontSize:9,fontWeight:'900',color:C.navy},title:{fontSize:25,lineHeight:29,fontWeight:'900',color:C.navy},kicker:{fontSize:10,fontWeight:'900',letterSpacing:1.3,color:C.blue},sub:{fontSize:13,lineHeight:17,fontWeight:'700',color:C.muted},panel:{padding:10,borderRadius:9,marginBottom:7,backgroundColor:C.panel,borderWidth:1,borderColor:C.line},input:{minHeight:42,paddingHorizontal:10,paddingVertical:6,fontSize:18,borderRadius:8,borderWidth:1,borderColor:C.line,color:C.navy,backgroundColor:C.panel},label:{fontSize:11,fontWeight:'900',letterSpacing:.8,color:C.navy,marginBottom:4,marginTop:6},seg:{paddingHorizontal:8,paddingVertical:7,minHeight:38},backBtn:{alignSelf:'flex-start',paddingHorizontal:9,paddingVertical:6,borderRadius:7,borderWidth:1,borderColor:C.blue,marginBottom:6},backText:{fontSize:11,fontWeight:'900',color:C.navy},savedPlayer:{flexDirection:'row',flexWrap:'wrap',gap:5,marginTop:6},savedName:{flex:1,minWidth:150},savedHcp:{width:66},savedPhone:{width:'100%'},addClubRow:{flexDirection:'row',gap:5,alignItems:'center',marginBottom:7},clubNameInput:{flex:1},clubDistInput:{width:70},addClubBtn:{height:42,paddingHorizontal:10,borderRadius:8,backgroundColor:C.blue,alignItems:'center',justifyContent:'center'},addClubText:{fontSize:10,fontWeight:'900',color:C.white},bagRow67:{height:48,flexDirection:'row',alignItems:'center',gap:5,paddingHorizontal:9,marginBottom:4,borderRadius:8,borderWidth:1,borderColor:C.line,backgroundColor:C.panel},bagClub67:{flex:1,fontSize:15,fontWeight:'900',color:C.navy},bagInput67:{width:68,height:36,padding:4,textAlign:'center',fontSize:16,fontWeight:'900',color:C.navy,borderWidth:1,borderColor:C.line,borderRadius:6,backgroundColor:C.white},unit67:{width:20,fontSize:10,fontWeight:'800',color:C.muted},remove67:{width:32,height:32,borderRadius:6,alignItems:'center',justifyContent:'center',backgroundColor:C.navy},remove67Text:{fontSize:20,lineHeight:22,fontWeight:'900',color:C.white},scoreCard:{padding:6,borderRadius:8,marginBottom:7,backgroundColor:C.panel,borderWidth:1,borderColor:C.line},scoreLabel:{width:76,height:34,paddingHorizontal:3,textAlignVertical:'center',fontSize:10,fontWeight:'900',color:C.navy,borderWidth:.5,borderColor:C.line},scoreCellHead:{width:31,height:34,textAlign:'center',textAlignVertical:'center',fontSize:10,fontWeight:'900',color:C.navy,borderWidth:.5,borderColor:C.line},scoreCellPar:{width:31,height:34,textAlign:'center',textAlignVertical:'center',fontSize:10,fontWeight:'700',color:C.muted,borderWidth:.5,borderColor:C.line},scoreCellInput:{width:31,height:34,padding:0,textAlign:'center',fontSize:11,fontWeight:'900',color:C.navy,borderWidth:.5,borderColor:C.line,backgroundColor:C.white},scoreNine:{fontSize:11,fontWeight:'900',color:C.navy,marginBottom:4}"
-idx=s.rfind('});'); s=s[:idx]+insert+s[idx:] if idx!=-1 else s
+    anchor='const BUILD66_LOGIN=true;'
+    if anchor in s:
+        s=s.replace(anchor,anchor+'\nconst BUILD67_RESPONSIVE=true;',1)
+    else:
+        s='const BUILD67_RESPONSIVE=true;\n'+s
+
+# Keep anti-glare preference across launches without changing its approved UI.
+needle=" const[antiGlare,setAntiGlare]=useState(true);"
+if needle in s and "AsyncStorage.getItem('CADDIEOS_ANTIGLARE_V1')" not in s:
+    s=s.replace(needle,needle+"\n useEffect(()=>{AsyncStorage.getItem('CADDIEOS_ANTIGLARE_V1').then(v=>{if(v!==null)setAntiGlare(v==='true')}).catch(()=>{})},[]);\n useEffect(()=>{AsyncStorage.setItem('CADDIEOS_ANTIGLARE_V1',String(antiGlare)).catch(()=>{})},[antiGlare]);",1)
+
+# Do NOT replace Settings, Bag, Scorecard, header, body, or navigation here.
+# Those Build 67 replacements caused the visible sizing/layout regression.
+# Wind direction, GPS, microphone/TTS, 4-player scorecard and the approved
+# login are supplied by the earlier verified build patches.
+
 APP.write_text(s)
+
 g=Path('CaddieOS/android/app/build.gradle')
 if g.exists():
- t=g.read_text();t=re.sub(r'versionCode\s+\d+','versionCode 67',t,count=1);t=re.sub(r'versionName\s+"[^"]+"','versionName "1.0.67"',t,count=1);g.write_text(t)
-print('Build 67 responsive cleanup applied')
+    t=g.read_text()
+    t=re.sub(r'versionCode\s+\d+','versionCode 68',t,count=1)
+    t=re.sub(r'versionName\s+"[^"]+"','versionName "1.0.68"',t,count=1)
+    g.write_text(t)
+
+print('Build 68 regression fix applied: approved compact UI preserved')
