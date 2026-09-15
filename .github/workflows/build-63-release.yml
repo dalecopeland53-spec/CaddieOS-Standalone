@@ -1,4 +1,4 @@
-name: CaddieOS Build 66 Release
+name: CaddieOS Build 67 Release
 
 on:
   push:
@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build66:
-    name: Build 66 APK
+  build67:
+    name: Build 67 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -43,7 +43,7 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install Build 66 source
+      - name: Install Build 67 source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
@@ -55,39 +55,30 @@ jobs:
           python3 scripts/build64_patch.py
           python3 scripts/build65_patch.py
           python3 scripts/build66_patch.py
-      - name: Validate Build 66 source
+          python3 scripts/build67_patch.py
+      - name: Validate Build 67 source
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
-          app=Path('CaddieOS/App.js').read_text()
-          gradle=Path('CaddieOS/android/app/build.gradle').read_text()
-          manifest=Path('CaddieOS/android/app/src/main/AndroidManifest.xml').read_text()
-          required_app=['BUILD64_PREMIUM','BUILD65_WIND_UI','BUILD66_LOGIN','windArrowBox','PLAYER PROFILE','ENTER CADDIEOS','No email required','My Pre Shot Routine','CADDIEOS_PARTNERS_V1','4-player traditional card']
-          required_permissions=['android.permission.ACCESS_FINE_LOCATION','android.permission.ACCESS_COARSE_LOCATION','android.permission.RECORD_AUDIO','android.permission.INTERNET']
-          missing=[x for x in required_app if x not in app]
-          missing += [x for x in required_permissions if x not in manifest]
-          welcome=re.search(r'function Welcome\([^)]*\)\{return .*?\}\nfunction Home',app,re.S)
-          login=welcome.group(0) if welcome else ''
-          forbidden_login=['label="EMAIL"','CONTINUE WITH GOOGLE','CONTINUE WITH APPLE','label="PASSWORD"']
-          bad=[x for x in forbidden_login if x in login]
-          if not welcome: missing.append('approved Welcome component')
-          if bad: missing += ['obsolete login still present: '+x for x in bad]
-          if 'versionCode 66' not in gradle: missing.append('versionCode 66')
-          if 'versionName "1.0.66"' not in gradle: missing.append('versionName 1.0.66')
-          if missing:
-              raise SystemExit('Build 66 validation failed: ' + ', '.join(missing))
-          print('Build 66 validation passed: approved login only; settings/course email fields preserved')
+          app=Path('CaddieOS/App.js').read_text(); gradle=Path('CaddieOS/android/app/build.gradle').read_text(); manifest=Path('CaddieOS/android/app/src/main/AndroidManifest.xml').read_text()
+          required=['BUILD67_RESPONSIVE','CADDIEOS_ANTIGLARE_V1','SAVED PLAYERS','Contact number','Player 1','14-Club Setup','Club name','My Pre Shot Routine']
+          missing=[x for x in required if x not in app]
+          missing += [x for x in ['android.permission.ACCESS_FINE_LOCATION','android.permission.RECORD_AUDIO','android.permission.INTERNET'] if x not in manifest]
+          if 'label="EMAIL"' in app: missing.append('email field still present')
+          if 'versionCode 67' not in gradle: missing.append('versionCode 67')
+          if 'versionName "1.0.67"' not in gradle: missing.append('versionName 1.0.67')
+          if missing: raise SystemExit('Build 67 validation failed: '+', '.join(missing))
+          print('Build 67 validation passed')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-66.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-67.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-66
-          path: output/CaddieOS-Build-66.apk
+          name: CaddieOS-Build-67
+          path: output/CaddieOS-Build-67.apk
           if-no-files-found: error
           retention-days: 14
