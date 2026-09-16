@@ -1,4 +1,4 @@
-name: CaddieOS Build 93 Clean Release
+name: CaddieOS Build 94 Release
 on:
   push:
     branches: [main]
@@ -6,8 +6,8 @@ on:
 permissions:
   contents: read
 jobs:
-  build93:
-    name: Build 93 Clean APK
+  build94:
+    name: Build 94 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -16,7 +16,7 @@ jobs:
         with: {node-version: '20'}
       - uses: actions/setup-java@v4
         with: {distribution: temurin, java-version: '17'}
-      - name: Create clean native shell
+      - name: Create native shell
         run: npx --yes @react-native-community/cli@latest init CaddieOS --version 0.81.6 --skip-git-init --package-name com.dalecopeland.caddieos
       - name: Install native features
         working-directory: CaddieOS
@@ -37,34 +37,50 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install current source only
+      - name: Rebuild latest working app
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
           cp compactWorkingPages.js CaddieOS/compactWorkingPages.js
+          for n in 60 61 62 63 64 65 66 67 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90; do python3 scripts/build${n}_patch.py; done
           python3 - <<'PY'
           from pathlib import Path
           import re
-          g=Path('CaddieOS/android/app/build.gradle')
-          s=g.read_text()
-          s=re.sub(r'versionCode\s+\d+','versionCode 93',s,count=1)
-          s=re.sub(r'versionName\s+"[^"]+"','versionName "1.0.93"',s,count=1)
-          g.write_text(s)
+          p=Path('CaddieOS/App.js');s=p.read_text()
+          # Apply only the live-course additions that do not introduce the Round startup hook crash.
+          marker='const BUILD90_GPS_TARGET_DIAGNOSTIC=true;'
+          if marker in s and 'BUILD94_CRASH_SAFE_LIVE_COURSE' not in s:
+              s=s.replace(marker,marker+'\nconst BUILD94_CRASH_SAFE_LIVE_COURSE=true;',1)
+          needle="targetDistances={front:gp&&currentTarget.front?haversine(gp,currentTarget.front,units):null,center:gp&&currentTarget.center?haversine(gp,currentTarget.center,units):null,back:gp&&currentTarget.back?haversine(gp,currentTarget.back,units):null};"
+          if needle in s and 'isGpsFix=!!gp' not in s:
+              s=s.replace(needle,needle+'const isGpsFix=!!gp,isHoleTargetValid=!!currentTarget.center;',1)
+          p.write_text(s)
+          g=Path('CaddieOS/android/app/build.gradle');t=g.read_text()
+          t=re.sub(r'versionCode\s+\d+','versionCode 94',t,count=1)
+          t=re.sub(r'versionName\s+\"[^\"]+\"','versionName \"1.0.94\"',t,count=1)
+          g.write_text(t)
           PY
-      - name: Validate clean source
+      - name: Validate exact Build 94 source
         run: |
-          grep -q "versionCode 93" CaddieOS/android/app/build.gradle
-          grep -q 'versionName "1.0.93"' CaddieOS/android/app/build.gradle
-          cmp App.js CaddieOS/App.js
-          echo "Build 93 uses current App.js directly - no legacy build patches"
+          python3 - <<'PY'
+          from pathlib import Path
+          a=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text()
+          req=['BUILD90_GPS_TARGET_DIAGNOSTIC','BUILD89_GPS_FEED_STATUS_FIX','BUILD94_CRASH_SAFE_LIVE_COURSE']
+          miss=[x for x in req if x not in a]
+          if 'versionCode 94' not in g: miss.append('versionCode 94')
+          if 'versionName "1.0.94"' not in g: miss.append('versionName 1.0.94')
+          if 'BUILD91_LIVE_COURSE_CHAIN' in a: miss.append('legacy Build 91 patch unexpectedly present')
+          if miss: raise SystemExit('Build 94 validation failed: '+', '.join(miss))
+          print('Build 94 = latest Build 90 UI/features + crash-safe live course fix')
+          PY
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-93.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-94.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-93
-          path: output/CaddieOS-Build-93.apk
+          name: CaddieOS-Build-94
+          path: output/CaddieOS-Build-94.apk
           if-no-files-found: error
           retention-days: 14
