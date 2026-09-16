@@ -48,12 +48,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           a=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text()
-          req=['BUILD82_IMPORT_TO_ROUND','BUILD81_REAL_ONLY','OPENGOLF_CACHE','setRealCourse','cachedOpenGolfCourse','Start live GPS and select a real course for Caddie advice.']
+          req=['BUILD82_IMPORT_TO_ROUND','BUILD81_REAL_ONLY','OPENGOLF_CACHE','setRealCourse','cachedOpenGolfCourse','buildRealCourseAdvice']
           miss=[x for x in req if x not in a]
           if 'versionCode 82' not in g:miss.append('versionCode 82')
           if 'versionName "1.0.82"' not in g:miss.append('versionName 1.0.82')
           if miss:raise SystemExit('Build 82 validation failed: '+', '.join(miss))
-          print('Build 82 validation passed: imported course wired to Round cache')
+          print('Build 82 validation passed')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
