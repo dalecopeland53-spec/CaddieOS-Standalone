@@ -1,4 +1,4 @@
-name: CaddieOS Build 81 Release
+name: CaddieOS Build 82 Release
 on:
   push:
     branches: [main]
@@ -6,19 +6,16 @@ on:
 permissions:
   contents: read
 jobs:
-  build81:
-    name: Build 81 APK
+  build82:
+    name: Build 82 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+        with: {node-version: '20'}
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+        with: {distribution: temurin, java-version: '17'}
       - name: Create native shell
         run: npx --yes @react-native-community/cli@latest init CaddieOS --version 0.81.6 --skip-git-init --package-name com.dalecopeland.caddieos
       - name: Install native features
@@ -40,32 +37,32 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install Build 81 source
+      - name: Install Build 82 source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
           cp compactWorkingPages.js CaddieOS/compactWorkingPages.js
-          for n in 60 61 62 63 64 65 66 67 69 70 71 72 73 74 75 76 77 78 79 80 81; do python3 scripts/build${n}_patch.py; done
-      - name: Validate Build 81 source
+          for n in 60 61 62 63 64 65 66 67 69 70 71 72 73 74 75 76 77 78 79 80 81 82; do python3 scripts/build${n}_patch.py; done
+      - name: Validate Build 82 source
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          app=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text()
-          required=['BUILD81_REAL_ONLY','BUILD80_REAL_COURSE_SELECT','Choose a real course before starting the round.','Select a real course to activate course-aware Caddie advice.','RealCoursePicker','buildRealCourseAdvice']
-          missing=[x for x in required if x not in app]
-          if 'versionCode 81' not in g:missing.append('versionCode 81')
-          if 'versionName "1.0.81"' not in g:missing.append('versionName 1.0.81')
-          if missing:raise SystemExit('Build 81 validation failed: '+', '.join(missing))
-          print('Build 81 validation passed')
+          a=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text()
+          req=['BUILD82_IMPORT_TO_ROUND','BUILD81_REAL_ONLY','OPENGOLF_CACHE','setRealCourse','cachedOpenGolfCourse','Start live GPS and select a real course for Caddie advice.']
+          miss=[x for x in req if x not in a]
+          if 'versionCode 82' not in g:miss.append('versionCode 82')
+          if 'versionName "1.0.82"' not in g:miss.append('versionName 1.0.82')
+          if miss:raise SystemExit('Build 82 validation failed: '+', '.join(miss))
+          print('Build 82 validation passed: imported course wired to Round cache')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-81.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-82.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-81
-          path: output/CaddieOS-Build-81.apk
+          name: CaddieOS-Build-82
+          path: output/CaddieOS-Build-82.apk
           if-no-files-found: error
           retention-days: 14
