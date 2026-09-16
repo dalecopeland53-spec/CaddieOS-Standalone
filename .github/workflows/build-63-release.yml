@@ -1,4 +1,4 @@
-name: CaddieOS Build 94 Release
+name: CaddieOS Clean Master Release
 on:
   push:
     branches: [main]
@@ -6,17 +6,20 @@ on:
 permissions:
   contents: read
 jobs:
-  build94:
-    name: Build 94 APK
+  build:
+    name: Build CaddieOS APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: {node-version: '20'}
-      - uses: actions/setup-java@v4
-        with: {distribution: temurin, java-version: '17'}
-      - name: Create native shell
+        with:
+          node-version: '20'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Create clean native shell
         run: npx --yes @react-native-community/cli@latest init CaddieOS --version 0.81.6 --skip-git-init --package-name com.dalecopeland.caddieos
       - name: Install native features
         working-directory: CaddieOS
@@ -37,50 +40,48 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Rebuild latest working app
+      - name: Install current CaddieOS master source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
-          cp compactWorkingPages.js CaddieOS/compactWorkingPages.js
-          for n in 60 61 62 63 64 65 66 67 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90; do python3 scripts/build${n}_patch.py; done
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path('CaddieOS/App.js');s=p.read_text()
-          # Apply only the live-course additions that do not introduce the Round startup hook crash.
-          marker='const BUILD90_GPS_TARGET_DIAGNOSTIC=true;'
-          if marker in s and 'BUILD94_CRASH_SAFE_LIVE_COURSE' not in s:
-              s=s.replace(marker,marker+'\nconst BUILD94_CRASH_SAFE_LIVE_COURSE=true;',1)
-          needle="targetDistances={front:gp&&currentTarget.front?haversine(gp,currentTarget.front,units):null,center:gp&&currentTarget.center?haversine(gp,currentTarget.center,units):null,back:gp&&currentTarget.back?haversine(gp,currentTarget.back,units):null};"
-          if needle in s and 'isGpsFix=!!gp' not in s:
-              s=s.replace(needle,needle+'const isGpsFix=!!gp,isHoleTargetValid=!!currentTarget.center;',1)
-          p.write_text(s)
-          g=Path('CaddieOS/android/app/build.gradle');t=g.read_text()
-          t=re.sub(r'versionCode\s+\d+','versionCode 94',t,count=1)
-          t=re.sub(r'versionName\s+\"[^\"]+\"','versionName \"1.0.94\"',t,count=1)
-          g.write_text(t)
-          PY
-      - name: Validate exact Build 94 source
+          if [ -f compactWorkingPages.js ]; then cp compactWorkingPages.js CaddieOS/compactWorkingPages.js; fi
+      - name: Configure Android permissions and release version
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          a=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text()
-          req=['BUILD90_GPS_TARGET_DIAGNOSTIC','BUILD89_GPS_FEED_STATUS_FIX','BUILD94_CRASH_SAFE_LIVE_COURSE']
-          miss=[x for x in req if x not in a]
-          if 'versionCode 94' not in g: miss.append('versionCode 94')
-          if 'versionName "1.0.94"' not in g: miss.append('versionName 1.0.94')
-          if 'BUILD91_LIVE_COURSE_CHAIN' in a: miss.append('legacy Build 91 patch unexpectedly present')
-          if miss: raise SystemExit('Build 94 validation failed: '+', '.join(miss))
-          print('Build 94 = latest Build 90 UI/features + crash-safe live course fix')
+          import re
+          manifest=Path('CaddieOS/android/app/src/main/AndroidManifest.xml')
+          s=manifest.read_text()
+          perms=['android.permission.RECORD_AUDIO','android.permission.ACCESS_FINE_LOCATION','android.permission.ACCESS_COARSE_LOCATION','android.permission.INTERNET']
+          for perm in perms:
+              line=f'<uses-permission android:name="{perm}" />'
+              if line not in s:
+                  s=s.replace('<manifest', '<manifest', 1)
+                  pos=s.find('>')+1
+                  s=s[:pos]+'\n    '+line+s[pos:]
+          manifest.write_text(s)
+          g=Path('CaddieOS/android/app/build.gradle')
+          t=g.read_text()
+          t=re.sub(r'versionCode\s+\d+','versionCode 95',t,count=1)
+          t=re.sub(r'versionName\s+"[^"]+"','versionName "1.0.95"',t,count=1)
+          g.write_text(t)
           PY
+      - name: Validate source
+        run: |
+          test -s CaddieOS/App.js
+          test -s CaddieOS/index.js
+          grep -q "versionCode 95" CaddieOS/android/app/build.gradle
+          grep -q "RECORD_AUDIO" CaddieOS/android/app/src/main/AndroidManifest.xml
+          grep -q "ACCESS_FINE_LOCATION" CaddieOS/android/app/src/main/AndroidManifest.xml
+          echo "Clean CaddieOS master source ready"
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-94.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-95.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-94
-          path: output/CaddieOS-Build-94.apk
+          name: CaddieOS-Build-95
+          path: output/CaddieOS-Build-95.apk
           if-no-files-found: error
           retention-days: 14
