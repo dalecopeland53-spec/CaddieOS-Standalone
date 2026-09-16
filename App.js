@@ -1,3 +1,4 @@
+// Build 60: Header marker
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -26,7 +27,7 @@ const C = {
 };
 
 const NAV = ['HOME', 'CADDIE', 'BAG', 'COURSE', 'MORE'];
-const PARS = [4, 5, 4, 3, 4, 4, 4, 5, 4, 4, 3, 4, 5, 4, 5, 3, 3, 4]; // Fixed missing data
+const PARS =;
 const LIES = ['Tee', 'Fairway', 'Light Rough', 'Rough', 'Deep Rough', 'Fairway Bunker', 'Greenside Bunker'];
 const TEES = ['Black', 'Blue', 'White', 'Red', 'Yellow'];
 const WIND = ['HEAD', 'TAIL', 'L→R', 'R→L'];
@@ -79,13 +80,12 @@ function playsLike(d, w, e, lie, dir, u) {
   return Math.max(0, Math.round(x));
 }
 
-// Fixed data-unwrap crash: Map structural arrays appropriately 
 function nearestClub(target, bag, u) {
   const validClubs = bag
     .filter(club => club[1] > 0)
     .map(club => ({ name: club[0], distance: yd(club[1], u) }));
     
-  if (!validClubs.length) return ['—', 0];
+  if (!validClubs.length) return { name: '—', distance: 0 };
   
   return validClubs.reduce((prev, curr) => 
     Math.abs(curr.distance - target) < Math.abs(prev.distance - target) ? curr : prev
@@ -116,7 +116,6 @@ function haversine(a, b, u) {
   return Math.round(u === 'METRES' ? m : m * 1.09361);
 }
 
-// Fixed text selection crash
 function parseSpeech(text, S) {
   const s = text.toLowerCase();
   const m = rx => { const a = s.match(rx); return a ? a[1] : null; };
@@ -130,7 +129,7 @@ function parseSpeech(text, S) {
   if (/headwind|into the wind/.test(s)) S.setWindDir('HEAD');
   else if (/tailwind|helping wind/.test(s)) S.setWindDir('TAIL');
   else if (/left to right|left-to-right/.test(s)) S.setWindDir('L→R');
-  else if (/right to left|right-to-left/.test(s)) S.setWindDir('R→L');
+  else if (/right to left|right-to-left/.test(s)) S.setWindDir('R-->L');
   
   const sl = m(/(?:slope|uphill|downhill)\s*(?:is|at)?\s*(\d{1,2})/);
   if (sl) S.setElev(/downhill/.test(s) ? `-${sl}` : sl);
@@ -154,9 +153,11 @@ export default function App() {
 function Shell() {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const compact = height < 780 || width < 380;
 
   const [entered, setEntered] = useState(false);
-  const [tab, setTab] = useState('CADDIE'); // Placed directly on Caddie view for easy voice debugging
+  const [tab, setTab] = useState('HOME');
+  const [screen, setScreen] = useState(null);
   const [units, setUnits] = useState('METRES');
   const [player, setPlayer] = useState('Player');
   const [email, setEmail] = useState('');
@@ -185,10 +186,26 @@ function Shell() {
   const [heard, setHeard] = useState('Tap the microphone and ask your caddie.');
   const [listening, setListening] = useState(false);
 
+  const [practiceClub, setPracticeClub] = useState('7 Iron');
+  const [practiceAdj, setPracticeAdj] = useState(0);
+  const [shape, setShape] = useState('Straight');
+  const [shotResult, setShotResult] = useState('Good');
+  const [practiceHistory, setPracticeHistory] = useState([]);
+
+  const [warmDone, setWarmDone] = useState([]);
+  const [routineSteps, setRoutineSteps] = useState(ROUTINE_DEFAULT);
+  const [routineDone, setRoutineDone] = useState([]);
+
+  const [courseInfo, setCourseInfo] = useState({
+    phone: '', email: '', membership: 'Members & visitors welcome',
+    cart: 'Yes', hire: 'Yes', proshop: 'Yes', pro: '', overview: ''
+  });
+
   const total = scores.reduce((a, b) => a + n(b), 0);
   const played = scores.filter(Boolean).length;
   const idx = Math.min(17, Math.max(0, n(hole) - 1));
   const toPar = scores.reduce((a, v, i) => a + (v ? n(v) - PARS[i] : 0), 0);
+  const totalPutts = putts.reduce((a, b) => a + n(b), 0);
 
   const result = useMemo(() => {
     const adjustedYardage = playsLike(distance, wind, elev, lie, windDir, units);
@@ -201,6 +218,13 @@ function Shell() {
     [result, lie, wind, windDir, elev, units]
   );
 
+  const gp = gps ? { lat: Number(gps.lat), lon: Number(gps.lon) } : null;
+  const targetDistances = {
+    front: haversine(gp, targets[idx]?.front, units),
+    center: haversine(gp, targets[idx]?.center, units),
+    back: haversine(gp, targets[idx]?.back, units)
+  };
+
   useEffect(() => {
     let active = true;
     (async () => {
@@ -208,10 +232,13 @@ function Shell() {
         const raw = await AsyncStorage.getItem(STORAGE);
         if (active && raw) {
           const x = JSON.parse(raw);
-          if (x.units) setUnits(x.units);
-          if (x.player) setPlayer(x.player);
-          if (x.bag) setBag(x.bag);
-          if (x.course) setCourse(x.course);
+          const setters = {
+            units: setUnits, player: setPlayer, email: setEmail, handicap: setHandicap, bag: setBag,
+            course: setCourse, tee: setTee, targets: setTargets, scores: setScores, putts: setPutts,
+            gir: setGir, fw: setFw, pen: setPen, notes: setNotes, roundLog: setRoundLog,
+            practiceHistory: setPracticeHistory, routineSteps: setRoutineSteps, courseInfo: setCourseInfo
+          };
+          Object.entries(setters).forEach(([k, set]) => x[k] !== undefined && set(x[k]));
         }
       } catch {}
     })();
@@ -220,45 +247,3 @@ function Shell() {
 
     Voice.onSpeechStart = () => setListening(true);
     Voice.onSpeechEnd = () => setListening(false);
-    Voice.onSpeechError = () => setListening(false);
-    Voice.onSpeechResults = (e) => {
-      if (e.value && e.value.length > 0) {
-        const spokenText = e.value[0];
-        setHeard(spokenText);
-        parseSpeech(spokenText, { setDistance, setWind, setWindDir, setElev, setLie });
-      }
-    };
-
-    return () => {
-      active = false;
-      Voice.destroy().then(Voice.removeAllListeners).catch(() => {});
-    };
-  }, []);
-
-  const toggleListening = async () => {
-    if (listening) {
-      try { await Voice.stop(); } catch {}
-    } else {
-      try {
-        setHeard('Listening...');
-        await Voice.start('en-AU');
-      } catch {
-        setListening(false);
-      }
-    }
-  };
-
-  const speakAdvice = () => {
-    Tts.stop();
-    Tts.speak(caddieText);
-  };
-
-  return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>CADDIE<Text style={{ color: C.gold }}>OS</Text></Text>
-
-        <View style={styles.panel}>
-          <Text style={styles.label}>HOLE {hole} — PAR {PARS[idx]}</Text>
-          <Text style={styles.largeText}>Plays Like: {result.y} {units.toLowerCase()}</Text>
