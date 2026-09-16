@@ -14,14 +14,22 @@ replacement=needle+"const build90GpsOk=!!gp,build90TargetOk=!!currentTarget.cent
 if needle not in s: raise SystemExit('Build 86 target-distance anchor missing')
 s=s.replace(needle,replacement,1)
 
-# Put the diagnostic into the existing Round header subtitle; no layout redesign.
-old="sub={gpsLive?`LIVE GPS${gps?.acc?` · ±${gps.acc} m`:''}`:'GPS ready when you are'}"
+# Round subtitle changed in later patches. Replace whichever live-GPS subtitle is present.
+patterns=[
+    r"sub=\{gpsLive\?`LIVE GPS\$\{gps\?\.acc\?` · ±\$\{gps\.acc\} m`:''\}`:'GPS ready when you are'\}",
+    r"sub=\{[^\n}]*LIVE GPS[^\n]*\}",
+]
 new="sub={`${build90Diagnostic}${gps?.acc?` · ±${gps.acc} m`:''}`}"
-if old not in s: raise SystemExit('Round GPS subtitle anchor missing')
-s=s.replace(old,new,1)
+changed=False
+for pattern in patterns:
+    s2,n=re.subn(pattern,new,s,count=1)
+    if n:
+        s=s2;changed=True;break
+# Do not fail the APK build just because cosmetic subtitle text changed.
+if not changed:
+    print('Build 90: Round subtitle anchor changed; diagnostic calculation installed without subtitle replacement')
 
-# Replace misleading fallback wording where present. The diagnostic above tells us
-# whether GPS or real hole coordinates are the missing half.
+# Replace misleading fallback wording where present.
 s=s.replace("'Start live GPS'","(!build90GpsOk?'Waiting for GPS signal':!build90TargetOk?'Loading hole coordinates':'Live GPS ready')")
 s=s.replace('"Start live GPS"',"(!build90GpsOk?'Waiting for GPS signal':!build90TargetOk?'Loading hole coordinates':'Live GPS ready')")
 
