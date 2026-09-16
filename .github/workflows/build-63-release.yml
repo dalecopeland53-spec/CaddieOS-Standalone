@@ -1,4 +1,4 @@
-name: CaddieOS Build 68 Release
+name: CaddieOS Build 69 Release
 
 on:
   push:
@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build68:
-    name: Build 68 APK
+  build69:
+    name: Build 69 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -43,7 +43,7 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install Build 68 source
+      - name: Install Build 69 source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
@@ -56,28 +56,29 @@ jobs:
           python3 scripts/build65_patch.py
           python3 scripts/build66_patch.py
           python3 scripts/build67_patch.py
-      - name: Validate Build 68 source
+          python3 scripts/build69_patch.py
+      - name: Validate Build 69 source
         run: |
           python3 - <<'PY'
           from pathlib import Path
           app=Path('CaddieOS/App.js').read_text(); gradle=Path('CaddieOS/android/app/build.gradle').read_text(); manifest=Path('CaddieOS/android/app/src/main/AndroidManifest.xml').read_text()
-          required=['BUILD67_RESPONSIVE','BUILD66_LOGIN','BUILD65_WIND_UI','windArrowBox','PLAYER PROFILE','ENTER CADDIEOS','My Pre Shot Routine','4-player traditional card']
+          required=['BUILD69_FIELD_TEST','BUILD67_RESPONSIVE','BUILD66_LOGIN','BUILD65_WIND_UI','PLAYER PROFILE','ENTER CADDIEOS','My Pre Shot Routine','4-player traditional card','SCORE THIS HOLE','ANTI-GLARE ON']
           missing=[x for x in required if x not in app]
           missing += [x for x in ['android.permission.ACCESS_FINE_LOCATION','android.permission.ACCESS_COARSE_LOCATION','android.permission.RECORD_AUDIO','android.permission.INTERNET'] if x not in manifest]
-          if 'versionCode 68' not in gradle: missing.append('versionCode 68')
-          if 'versionName "1.0.68"' not in gradle: missing.append('versionName 1.0.68')
-          if missing: raise SystemExit('Build 68 validation failed: '+', '.join(missing))
-          print('Build 68 validation passed: approved compact UI preserved')
+          if 'versionCode 69' not in gradle: missing.append('versionCode 69')
+          if 'versionName "1.0.69"' not in gradle: missing.append('versionName 1.0.69')
+          if missing: raise SystemExit('Build 69 validation failed: '+', '.join(missing))
+          print('Build 69 validation passed: field-test fixes included')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-68.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-69.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-68
-          path: output/CaddieOS-Build-68.apk
+          name: CaddieOS-Build-69
+          path: output/CaddieOS-Build-69.apk
           if-no-files-found: error
           retention-days: 14
