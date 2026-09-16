@@ -1,4 +1,4 @@
-name: CaddieOS Build 104
+name: CaddieOS Build 105
 
 "on":
   push:
@@ -66,27 +66,30 @@ jobs:
           manifest.write_text(text)
           gradle = Path('CaddieOS/android/app/build.gradle')
           text = gradle.read_text()
-          text = re.sub(r'versionCode\s+\d+', 'versionCode 104', text, count=1)
-          text = re.sub(r'versionName\s+"[^"]+"', 'versionName "1.0.104"', text, count=1)
+          text = re.sub(r'versionCode\s+\d+', 'versionCode 105', text, count=1)
+          text = re.sub(r'versionName\s+"[^"]+"', 'versionName "1.0.105"', text, count=1)
           gradle.write_text(text)
           PY
       - name: Validate clean source
         run: |
           test -s CaddieOS/App.js
-          grep -q "const PARS = \[4,4,3,5" CaddieOS/App.js
+          grep -q "const PARS=\[4,5,4,3" CaddieOS/App.js
           grep -q "Voice.onSpeechResults" CaddieOS/App.js
+          grep -q "function CourseInfo" CaddieOS/App.js
+          grep -q "function PostRound" CaddieOS/App.js
+          grep -q "function Practice" CaddieOS/App.js
           test -s CaddieOS/compactWorkingPages.js
           grep -q "const styles=StyleSheet.create" CaddieOS/App.js
-          grep -q "versionCode 104" CaddieOS/android/app/build.gradle
+          grep -q "versionCode 105" CaddieOS/android/app/build.gradle
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-104.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-105.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-104
-          path: output/CaddieOS-Build-104.apk
+          name: CaddieOS-Build-105
+          path: output/CaddieOS-Build-105.apk
           if-no-files-found: error
           retention-days: 14

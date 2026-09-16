@@ -1,314 +1,126 @@
-// Build 103: Clean master source
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  PermissionsAndroid,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useWindowDimensions
-} from 'react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Voice from '@react-native-voice/voice';
-import Tts from 'react-native-tts';
-import Geolocation from '@react-native-community/geolocation';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Build 105: restored complete CaddieOS master
+import React,{useEffect,useMemo,useState}from'react';
+import{Alert,PermissionsAndroid,Platform,ScrollView,StatusBar,StyleSheet,Text,TextInput,TouchableOpacity,View,useWindowDimensions}from'react-native';
+import{SafeAreaProvider,SafeAreaView,useSafeAreaInsets}from'react-native-safe-area-context';
+import Voice from'@react-native-voice/voice';
+import Tts from'react-native-tts';
+import Geolocation from'@react-native-community/geolocation';
+import AsyncStorage from'@react-native-async-storage/async-storage';
 
-const C = {
-  bg: '#071E2D', bg2: '#0A2A3E', panel: '#F2ECDD', panel2: '#E7DECA',
-  navy: '#0A2A43', blue: '#0B7FC0', gold: '#D5AE52', gold2: '#F0CE77',
-  text: '#0C2940', muted: '#667581', line: '#CDBE9E', dark: '#04131E',
-  white: '#FFFDF7', green: '#DCE7D5'
-};
+const C={bg:'#071E2D',bg2:'#0A2A3E',panel:'#F2ECDD',panel2:'#E7DECA',navy:'#0A2A43',blue:'#0B7FC0',gold:'#D5AE52',gold2:'#F0CE77',text:'#0C2940',muted:'#667581',line:'#CDBE9E',dark:'#04131E',white:'#FFFDF7',green:'#DCE7D5'};
+const NAV=['HOME','CADDIE','BAG','COURSE','MORE'];
+const PARS=[4,5,4,3,4,4,4,5,4,4,3,4,5,4,5,3,3,4];
+const LIES=['Tee','Fairway','Light Rough','Rough','Deep Rough','Fairway Bunker','Greenside Bunker'];
+const TEES=['Black','Blue','White','Red','Yellow'];
+const WIND=['HEAD','TAIL','L→R','R→L'];
+const CLUB_LIBRARY=['Driver','2 Wood','3 Wood','4 Wood','5 Wood','7 Wood','9 Wood','2 Hybrid','3 Hybrid','4 Hybrid','5 Hybrid','6 Hybrid','2 Iron','3 Iron','4 Iron','5 Iron','6 Iron','7 Iron','8 Iron','9 Iron','Pitching Wedge','Approach Wedge','Gap Wedge','Sand Wedge','Lob Wedge','Putter'];
+const DEFAULT_BAG=[['Driver',230],['3 Wood',210],['5 Wood',195],['4 Iron',180],['5 Iron',170],['6 Iron',160],['7 Iron',150],['8 Iron',140],['9 Iron',130],['Pitching Wedge',115],['Gap Wedge',100],['Sand Wedge',85],['Lob Wedge',70],['Putter',0]];
+const WARM=[['Glute Activator','10 bodyweight squats, using a club for balance.'],['Torso Twist','Club across shoulders, rotate smoothly for 60 seconds.'],['Hip Opener','10 forward/back and 10 side-to-side leg swings each side.'],['Heavy Swing','Two wedges together, 5 slow continuous swings.'],['Half-Wedge Drill','5 hip-to-hip wedge shots, concentrating on contact.'],['Ladder Climber','2–3 balls each: Wedge → 8 Iron → 5 Iron/Hybrid → Driver.'],['Fringe Roll','Two long putts to the fringe to learn today’s green speed.'],['3-Foot Circle','Three short putts from about one putter length.']];
+const ROUTINE_DEFAULT=['Target','Lie','Club','Picture','Commit','Breathe','Reset','Next'];
+const STORAGE='CADDIEOS_WORLDCLASS_V1';
+const n=v=>Number(String(v??'').replace(/[^0-9.-]/g,''))||0;
+const yd=(m,u)=>u==='METRES'?Math.round(m):Math.round(m*1.09361);
+const blankTargets=()=>Array.from({length:18},()=>({front:null,center:null,back:null}));
+const blankResults=()=>Array.from({length:18},()=>({situation:'',advice:'',club:'',result:''}));
+function windAdj(w,u){w=Math.abs(n(w));return u==='METRES'?(w/1.609344)*.75*.9144:w*.75}
+function playsLike(d,w,e,lie,dir,u){let x=Math.max(0,n(d));x*=1+({'Light Rough':.015,Rough:.04,'Deep Rough':.07,'Fairway Bunker':.045}[lie]||0);const a=windAdj(w,u);if(dir==='HEAD')x+=a;if(dir==='TAIL')x-=a;x*=1+n(e)/100;return Math.max(0,Math.round(x))}
+function nearestClub(target,bag,u){const a=bag.filter(x=>x[1]>0).map(x=>[x[0],yd(x[1],u)]);if(!a.length)return['—',0];return a.reduce((p,c)=>Math.abs(c[1]-target)<Math.abs(p[1]-target)?c:p)}
+function advice(target,club,lie,w,dir,e,u){const unit=u==='METRES'?'metres':'yards';let t=`Playing ${target} ${unit}. ${club}.`;if(lie!=='Tee'&&lie!=='Fairway')t+=` Allow for ${lie.toLowerCase()}.`;if(n(w)){if(dir==='HEAD')t+=` Headwind ${w}; flight it lower and allow more club.`;else if(dir==='TAIL')t+=` Tailwind ${w}; expect extra carry.`;else t+=` Crosswind ${w}; start it into the wind.`}if(n(e)>0)t+=` Uphill ${Math.abs(n(e))}%.`;if(n(e)<0)t+=` Downhill ${Math.abs(n(e))}%.`;return t+' Pick the target, picture the shot and commit.'}
+function haversine(a,b,u){if(!a||!b)return null;const r=x=>x*Math.PI/180,R=6371000,dLat=r(b.lat-a.lat),dLon=r(b.lon-a.lon),la1=r(a.lat),la2=r(b.lat),h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2,m=2*R*Math.asin(Math.min(1,Math.sqrt(h)));return Math.round(u==='METRES'?m:m*1.09361)}
+function parseSpeech(text,S){const s=text.toLowerCase(),m=rx=>{const a=s.match(rx);return a?a[1]:null};const d=m(/(?:to|target|distance|playing)\s+(\d{2,3})/)||m(/(\d{2,3})\s*(?:yards?|yds?|metres?|meters?)/);if(d)S.setDistance(d);const w=m(/(?:wind|headwind|tailwind)\s*(?:is|at)?\s*(\d{1,2})/)||m(/(\d{1,2})\s*(?:mph|kph|km\/h)/);if(w)S.setWind(w);if(/headwind|into the wind/.test(s))S.setWindDir('HEAD');else if(/tailwind|helping wind/.test(s))S.setWindDir('TAIL');else if(/left to right|left-to-right/.test(s))S.setWindDir('L→R');else if(/right to left|right-to-left/.test(s))S.setWindDir('R→L');const sl=m(/(?:slope|uphill|downhill)\s*(?:is|at)?\s*(\d{1,2})/);if(sl)S.setElev(/downhill/.test(s)?`-${sl}`:sl);for(const l of [...LIES].reverse())if(s.includes(l.toLowerCase())){S.setLie(l);break}}
 
-const NAV = ['HOME', 'CADDIE', 'BAG', 'COURSE', 'MORE'];
-const PARS = [4,4,3,5,4,4,3,4,5,4,4,3,5,4,4,3,4,5];
-const LIES = ['Tee', 'Fairway', 'Light Rough', 'Rough', 'Deep Rough', 'Fairway Bunker', 'Greenside Bunker'];
-const TEES = ['Black', 'Blue', 'White', 'Red', 'Yellow'];
-const WIND = ['HEAD', 'TAIL', 'L→R', 'R→L'];
-
-const CLUB_LIBRARY = [
-  'Driver', '2 Wood', '3 Wood', '4 Wood', '5 Wood', '7 Wood', '9 Wood',
-  '2 Hybrid', '3 Hybrid', '4 Hybrid', '5 Hybrid', '6 Hybrid', '2 Iron',
-  '3 Iron', '4 Iron', '5 Iron', '6 Iron', '7 Iron', '8 Iron', '9 Iron',
-  'Pitching Wedge', 'Approach Wedge', 'Gap Wedge', 'Sand Wedge', 'Lob Wedge', 'Putter'
-];
-
-const DEFAULT_BAG = [
-  ['Driver', 230], ['3 Wood', 210], ['5 Wood', 195], ['4 Iron', 180],
-  ['5 Iron', 170], ['6 Iron', 160], ['7 Iron', 150], ['8 Iron', 140],
-  ['9 Iron', 130], ['Pitching Wedge', 115], ['Gap Wedge', 100],
-  ['Sand Wedge', 85], ['Lob Wedge', 70], ['Putter', 0]
-];
-
-const WARM = [
-  ['Glute Activator', '10 bodyweight squats, using a club for balance.'],
-  ['Torso Twist', 'Club across shoulders, rotate smoothly for 60 seconds.'],
-  ['Hip Opener', '10 forward/back and 10 side-to-side leg swings each side.'],
-  ['Heavy Swing', 'Two wedges together, 5 slow continuous swings.'],
-  ['Half-Wedge Drill', '5 hip-to-hip wedge shots, concentrating on contact.'],
-  ['Ladder Climber', '2–3 balls each: Wedge → 8 Iron → 5 Iron/Hybrid → Driver.'],
-  ['Fringe Roll', 'Two long putts to the fringe to learn today’s green speed.'],
-  ['3-Foot Circle', 'Three short putts from about one putter length.']
-];
-
-const ROUTINE_DEFAULT = ['Target', 'Lie', 'Club', 'Picture', 'Commit', 'Breathe', 'Reset', 'Next'];
-const STORAGE = 'CADDIEOS_WORLDCLASS_V1';
-
-const n = v => Number(String(v ?? '').replace(/[^0-9.-]/g, '')) || 0;
-const yd = (m, u) => u === 'METRES' ? Math.round(m) : Math.round(m * 1.09361);
-const blankTargets = () => Array.from({ length: 18 }, () => ({ front: null, center: null, back: null }));
-const blankResults = () => Array.from({ length: 18 }, () => ({ situation: '', advice: '', club: '', result: '' }));
-
-function windAdj(w, u) {
-  w = Math.abs(n(w));
-  return u === 'METRES' ? (w / 1.609344) * .75 * .9144 : w * .75;
-}
-
-function playsLike(d, w, e, lie, dir, u) {
-  let x = Math.max(0, n(d));
-  x *= 1 + ({ 'Light Rough': .015, Rough: .04, 'Deep Rough': .07, 'Fairway Bunker': .045 }[lie] || 0);
-  const a = windAdj(w, u);
-  if (dir === 'HEAD') x += a;
-  if (dir === 'TAIL') x -= a;
-  x *= 1 + n(e) / 100;
-  return Math.max(0, Math.round(x));
-}
-
-function nearestClub(target, bag, u) {
-  const validClubs = bag
-    .filter(club => club[1] > 0)
-    .map(club => ({ name: club[0], distance: yd(club[1], u) }));
-    
-  if (!validClubs.length) return { name: '—', distance: 0 };
-  
-  return validClubs.reduce((prev, curr) => 
-    Math.abs(curr.distance - target) < Math.abs(prev.distance - target) ? curr : prev
-  );
-}
-
-function advice(target, clubName, lie, w, dir, e, u) {
-  const unit = u === 'METRES' ? 'metres' : 'yards';
-  let t = `Playing ${target} ${unit}. ${clubName}.`;
-  if (lie !== 'Tee' && lie !== 'Fairway') t += ` Allow for ${lie.toLowerCase()}.`;
-  if (n(w)) {
-    if (dir === 'HEAD') t += ` Headwind ${w}; flight it lower and allow more club.`;
-    else if (dir === 'TAIL') t += ` Tailwind ${w}; expect extra carry.`;
-    else t += ` Crosswind ${w}; start it into the wind.`;
-  }
-  if (n(e) > 0) t += ` Uphill ${Math.abs(n(e))}%.`;
-  if (n(e) < 0) t += ` Downhill ${Math.abs(n(e))}%.`;
-  return t + ' Pick the target, picture the shot and commit.';
-}
-
-function haversine(a, b, u) {
-  if (!a || !b) return null;
-  const r = x => x * Math.PI / 180, R = 6371000,
-    dLat = r(b.lat - a.lat), dLon = r(b.lon - a.lon),
-    la1 = r(a.lat), la2 = r(b.lat),
-    h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2,
-    m = 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-  return Math.round(u === 'METRES' ? m : m * 1.09361);
-}
-
-function parseSpeech(text, S) {
-  const s = text.toLowerCase();
-  const m = rx => { const a = s.match(rx); return a ? a[1] : null; };
-  
-  const d = m(/(?:to|target|distance|playing)\s+(\d{2,3})/) || m(/(\d{2,3})\s*(?:yards?|yds?|metres?|meters?)/);
-  if (d) S.setDistance(d);
-  
-  const w = m(/(?:wind|headwind|tailwind)\s*(?:is|at)?\s*(\d{1,2})/) || m(/(\d{1,2})\s*(?:mph|kph|km\/h)/);
-  if (w) S.setWind(w);
-  
-  if (/headwind|into the wind/.test(s)) S.setWindDir('HEAD');
-  else if (/tailwind|helping wind/.test(s)) S.setWindDir('TAIL');
-  else if (/left to right|left-to-right/.test(s)) S.setWindDir('L→R');
-  else if (/right to left|right-to-left/.test(s)) S.setWindDir('R→L');
-  
-  const sl = m(/(?:slope|uphill|downhill)\s*(?:is|at)?\s*(\d{1,2})/);
-  if (sl) S.setElev(/downhill/.test(s) ? `-${sl}` : sl);
-  
-  for (const l of [...LIES].reverse()) {
-    if (s.includes(l.toLowerCase())) {
-      S.setLie(l);
-      break;
+export default function App(){return <SafeAreaProvider><Shell/></SafeAreaProvider>}
+function Shell(){const{height,width}=useWindowDimensions(),insets=useSafeAreaInsets(),compact=height<780||width<380;
+ const[entered,setEntered]=useState(false),[tab,setTab]=useState('HOME'),[screen,setScreen]=useState(null);
+ const[units,setUnits]=useState('METRES'),[player,setPlayer]=useState('Player'),[email,setEmail]=useState(''),[handicap,setHandicap]=useState('');
+ const[bag,setBag]=useState(DEFAULT_BAG),[course,setCourse]=useState(''),[tee,setTee]=useState('White'),[hole,setHole]=useState('1'),[targets,setTargets]=useState(blankTargets()),[gps,setGps]=useState(null);
+ const[scores,setScores]=useState(Array(18).fill('')),[putts,setPutts]=useState(Array(18).fill('')),[gir,setGir]=useState(Array(18).fill(false)),[fw,setFw]=useState(Array(18).fill(false)),[pen,setPen]=useState(Array(18).fill('')),[notes,setNotes]=useState(Array(18).fill('')),[roundLog,setRoundLog]=useState(blankResults());
+ const[distance,setDistance]=useState('150'),[wind,setWind]=useState('0'),[windDir,setWindDir]=useState('HEAD'),[elev,setElev]=useState('0'),[lie,setLie]=useState('Fairway');
+ const[heard,setHeard]=useState('Tap the microphone and ask your caddie.'),[listening,setListening]=useState(false),[pendingSpeak,setPendingSpeak]=useState(false);
+ const[practiceClub,setPracticeClub]=useState('7 Iron'),[practiceAdj,setPracticeAdj]=useState(0),[shape,setShape]=useState('Straight'),[shotResult,setShotResult]=useState('Good'),[practiceHistory,setPracticeHistory]=useState([]);
+ const[warmDone,setWarmDone]=useState([]),[routineSteps,setRoutineSteps]=useState(ROUTINE_DEFAULT),[routineDone,setRoutineDone]=useState([]);
+ const[courseInfo,setCourseInfo]=useState({phone:'',membership:'Members & visitors welcome',cart:'Yes',hire:'Yes',proshop:'Yes',pro:'',overview:''});
+ const total=scores.reduce((a,b)=>a+n(b),0),played=scores.filter(Boolean).length,toPar=scores.reduce((a,v,i)=>a+(v?n(v)-PARS[i]:0),0),totalPutts=putts.reduce((a,b)=>a+n(b),0),totalPen=pen.reduce((a,b)=>a+n(b),0);
+ const result=useMemo(()=>{const y=playsLike(distance,wind,elev,lie,windDir,units),c=nearestClub(y,bag,units);return{y,club:c[0],carry:c[1]}},[distance,wind,elev,lie,windDir,units,bag]);
+ const caddieText=useMemo(()=>advice(result.y,result.club,lie,wind,windDir,elev,units),[result,lie,wind,windDir,elev,units]);
+ const idx=Math.min(17,Math.max(0,n(hole)-1)),currentTarget=targets[idx],gp=gps?{lat:Number(gps.lat),lon:Number(gps.lon)}:null,targetDistances={front:haversine(gp,currentTarget?.front,units),center:haversine(gp,currentTarget?.center,units),back:haversine(gp,currentTarget?.back,units)};
+ useEffect(()=>{
+  let active=true;
+  (async()=>{
+   try{
+    const raw=await AsyncStorage.getItem(STORAGE);
+    if(active&&raw){
+     const x=JSON.parse(raw);
+     Object.entries({units:setUnits,player:setPlayer,email:setEmail,handicap:setHandicap,bag:setBag,course:setCourse,tee:setTee,targets:setTargets,scores:setScores,putts:setPutts,gir:setGir,fw:setFw,pen:setPen,notes:setNotes,roundLog:setRoundLog,practiceHistory:setPracticeHistory,routineSteps:setRoutineSteps,courseInfo:setCourseInfo}).forEach(([k,set])=>x[k]!==undefined&&set(x[k]));
     }
-  }
-}
+   }catch{}
+  })();
+  Tts.setDefaultLanguage('en-AU').catch(()=>{});
+  Voice.onSpeechStart=()=>setListening(true);
+  Voice.onSpeechEnd=()=>setListening(false);
+  Voice.onSpeechError=()=>{setListening(false);setHeard('Microphone did not hear that. Tap and try again.')};
+  Voice.onSpeechResults=e=>{const t=e.value?.[0]||'';setHeard(t?`Heard: ${t}`:'Nothing heard');if(t){parseSpeech(t,{setDistance,setWind,setWindDir,setElev,setLie});setPendingSpeak(true)}};
+  return()=>{active=false;Voice.destroy().then(()=>Voice.removeAllListeners()).catch(()=>{})};
+ },[]);
+ useEffect(()=>{if(!pendingSpeak)return;const z=setTimeout(()=>{Tts.stop().catch(()=>{});Tts.speak(caddieText);setPendingSpeak(false)},180);return()=>clearTimeout(z)},[pendingSpeak,caddieText]);
+ useEffect(()=>{AsyncStorage.setItem(STORAGE,JSON.stringify({units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo})).catch(()=>{})},[units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo]);
+ const ask=async()=>{try{if(Platform.OS==='android'){const ok=await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);if(ok!==PermissionsAndroid.RESULTS.GRANTED)return Alert.alert('Microphone permission','Allow microphone access so CaddieOS can hear you.')}if(listening){await Voice.stop();setListening(false)}else{setHeard('Listening…');await Voice.start('en-AU')}}catch{setListening(false);Alert.alert('Microphone','Unable to start speech recognition.')}};
+ const getGPS=async()=>{if(Platform.OS==='android'){const ok=await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);if(ok!==PermissionsAndroid.RESULTS.GRANTED)return Alert.alert('Location permission','Allow location access so CaddieOS can use GPS.')}Geolocation.getCurrentPosition(p=>setGps({lat:p.coords.latitude.toFixed(6),lon:p.coords.longitude.toFixed(6),acc:Math.round(p.coords.accuracy)}),()=>Alert.alert('GPS','Could not get your current position.'),{enableHighAccuracy:true,timeout:15000,maximumAge:3000})};
+ const markTarget=kind=>{if(!gps)return Alert.alert('Mark target','Get your GPS position first.');const p={lat:Number(gps.lat),lon:Number(gps.lon)};setTargets(a=>a.map((x,i)=>i===idx?{...x,[kind]:p}:x));Alert.alert('Saved',`${kind.toUpperCase()} saved for hole ${idx+1}.`)};
+ const go=x=>{setScreen(null);setTab(x)},open=x=>setScreen(x),page=screen||tab;
+ const recordAdvice=()=>{setRoundLog(a=>a.map((x,i)=>i===idx?{...x,situation:`${distance} ${units==='METRES'?'m':'yd'} · ${lie}`,advice:caddieText,club:result.club}:x));Alert.alert('Caddie note','Advice saved to this hole.')};
+ if(!entered)return <SafeAreaView style={s.loginSafe} edges={['top','bottom']}><StatusBar barStyle="light-content" backgroundColor={C.dark}/><Welcome player={player} setPlayer={setPlayer} enter={()=>setEntered(true)}/></SafeAreaView>;
+ return <SafeAreaView style={s.safe} edges={['top','left','right']}><StatusBar barStyle="light-content" backgroundColor={C.bg}/><Header go={()=>go('HOME')}/><View style={s.flex}><ScrollView style={s.flex} contentContainerStyle={[s.body,compact&&s.bodyCompact]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+ {page==='HOME'&&<Home player={player} course={course} played={played} total={total} toPar={toPar} open={open} go={go}/>} 
+ {page==='ROUND'&&<Round hole={hole} setHole={setHole} result={result} units={units} gps={gps} getGPS={getGPS} targetDistances={targetDistances} open={open}/>} 
+ {page==='CADDIE'&&<Caddie {...{distance,setDistance,wind,setWind,windDir,setWindDir,elev,setElev,lie,setLie,result,units,ask,listening,heard,caddieText,recordAdvice}}/>}
+ {page==='BAG'&&<Bag bag={bag} setBag={setBag} units={units}/>} 
+ {page==='COURSE'&&<Course {...{course,setCourse,tee,setTee,hole,setHole,gps,getGPS,markTarget,currentTarget,open,setTargets}}/>}
+ {page==='MORE'&&<More units={units} handicap={handicap} open={open}/>} 
+ {page==='SCORE'&&<Score {...{scores,setScores,putts,setPutts,gir,setGir,fw,setFw,pen,setPen,total,toPar,played,roundLog,setRoundLog,open}}/>}
+ {page==='PRACTICE'&&<Practice {...{bag,units,practiceClub,setPracticeClub,practiceAdj,setPracticeAdj,shape,setShape,shotResult,setShotResult,practiceHistory,setPracticeHistory}}/>}
+ {page==='WARMUP'&&<WarmUp done={warmDone} setDone={setWarmDone}/>} 
+ {page==='ROUTINES'&&<RoutineSetup steps={routineSteps} setSteps={setRoutineSteps} done={routineDone} setDone={setRoutineDone}/>} 
+ {page==='SETTINGS'&&<Settings {...{player,setPlayer,handicap,setHandicap,units,setUnits,signOut:()=>setEntered(false)}}/>}
+ {page==='SUMMARY'&&<Summary {...{scores,putts,total,totalPutts,toPar,totalPen,roundLog,open}}/>}
+ {page==='POSTROUND'&&<PostRound {...{scores,putts,gir,fw,pen,roundLog,toPar,totalPutts,totalPen,practiceHistory}}/>}
+ {page==='COURSEINFO'&&<CourseInfo course={course} info={courseInfo} setInfo={setCourseInfo}/>} 
+ </ScrollView><BottomNav tab={tab} go={go} bottom={insets.bottom}/></View></SafeAreaView>}
 
-export default function App() {
-  return (
-    <SafeAreaProvider>
-      <Shell />
-    </SafeAreaProvider>
-  );
-}
+const Title=({kicker,title,sub})=><View style={s.title}><Text style={s.kicker}>{kicker}</Text><Text style={s.h1}>{title}</Text>{sub?<Text style={s.sub}>{sub}</Text>:null}</View>;
+const Btn=({text,onPress,outline=false})=><TouchableOpacity onPress={onPress} style={[s.btn,outline&&s.btnOutline]}><Text style={[s.btnText,outline&&s.btnTextOutline]}>{text}</Text></TouchableOpacity>;
+const Field=({label,value,onChangeText,keyboardType='default'})=><View style={s.fieldWrap}><Text style={s.label}>{label}</Text><TextInput value={String(value??'')} onChangeText={onChangeText} keyboardType={keyboardType} style={s.input} placeholderTextColor={C.muted}/></View>;
+const Seg=({items,value,setValue})=><View style={s.seg}>{items.map(x=><TouchableOpacity key={x} onPress={()=>setValue(x)} style={[s.segItem,value===x&&s.segOn]}><Text style={[s.segText,value===x&&s.segTextOn]}>{x}</Text></TouchableOpacity>)}</View>;
+function Header({go}){return <View style={s.header}><TouchableOpacity onPress={go}><Text style={s.brand}>CADDIE<Text style={s.brandGold}>OS</Text></Text><Text style={s.brandSub}>TOUR-LEVEL DECISIONS · YOUR GAME</Text></TouchableOpacity><Text style={s.anti}>ANTI-GLARE</Text></View>}
+function BottomNav({tab,go,bottom}){return <View style={[s.nav,{paddingBottom:Math.max(8,bottom)}]}>{NAV.map(x=><TouchableOpacity key={x} onPress={()=>go(x)} style={s.navItem}><Text style={[s.navText,tab===x&&s.navOn]}>{x}</Text></TouchableOpacity>)}</View>}
+function Welcome({player,setPlayer,enter}){return <ScrollView contentContainerStyle={s.loginBody}><Text style={s.loginMark}>CADDIE<Text style={s.brandGold}>OS</Text></Text><Text style={s.loginTitle}>Welcome to your caddie</Text><Text style={s.loginSub}>YOUR CADDIE. YOUR GAME.</Text><View style={s.loginCard}><Field label="PLAYER" value={player} onChangeText={setPlayer}/><Btn text="ENTER CADDIEOS" onPress={enter}/></View><Text style={s.loginFoot}>Golf is a game for life.</Text></ScrollView>}
+function Home({player,course,played,total,toPar,open,go}){const cards=[['SCORECARD','Round scoring','SCORE'],['PRACTICE','My Bag powered','PRACTICE'],['WARM-UP','10-minute flow','WARMUP'],['ROUTINE SETUP','8-step mental game','ROUTINES'],['ROUND SUMMARY','Hole-by-hole facts','SUMMARY'],['POST-ROUND CADDIE','Review and next priorities','POSTROUND']];return <><Title kicker="HOME" title={`Ready, ${player||'Player'}`} sub={course||'Course not selected'}/><View style={s.statRow}><Stat a={played} b="HOLES"/><Stat a={total||'—'} b="SCORE"/><Stat a={played?`${toPar>=0?'+':''}${toPar}`:'—'} b="TO PAR"/></View><View style={s.grid}>{cards.map(c=><TouchableOpacity key={c[0]} style={s.homeCard} onPress={()=>open(c[2])}><Text style={s.cardTitle}>{c[0]}</Text><Text style={s.cardSub}>{c[1]}</Text></TouchableOpacity>)}</View><Btn text="START ROUND" onPress={()=>go('ROUND')}/></>}
+const Stat=({a,b})=><View style={s.stat}><Text style={s.statA}>{a}</Text><Text style={s.statB}>{b}</Text></View>;
+function Round({hole,setHole,result,units,gps,getGPS,targetDistances,open}){return <><Title kicker="ROUND" title={`Hole ${hole}`} sub="Live playing position"/><Seg items={['1','2','3','4','5','6','7','8','9']} value={String(hole)} setValue={setHole}/><View style={s.panel}><Text style={s.panelTitle}>GREEN DISTANCES</Text><View style={s.distanceRow}><Stat a={targetDistances.front??'—'} b="FRONT"/><Stat a={targetDistances.center??'—'} b="CENTRE"/><Stat a={targetDistances.back??'—'} b="BACK"/></View><Text style={s.small}>{units==='METRES'?'metres':'yards'}</Text></View><View style={s.panel}><Text style={s.panelTitle}>CADDIE RECOMMENDATION</Text><Text style={s.bigClub}>{result.club}</Text><Text style={s.cardSub}>Playing {result.y} {units==='METRES'?'m':'yd'}</Text></View><Btn text={gps?'REFRESH GPS':'GET GPS POSITION'} onPress={getGPS}/><Btn text="OPEN CADDIE" onPress={()=>open('CADDIE')} outline/><Btn text="SCORE THIS HOLE" onPress={()=>open('SCORE')} outline/></>}
+function Caddie({distance,setDistance,wind,setWind,windDir,setWindDir,elev,setElev,lie,setLie,result,units,ask,listening,heard,caddieText,recordAdvice}){return <><Title kicker="VOICE CADDIE" title="Caddie" sub="Tap and speak"/><TouchableOpacity style={s.mic} onPress={ask}><Text style={s.micIcon}>●</Text><Text style={s.micTitle}>{listening?'LISTENING…':'CADDIE'}</Text><Text style={s.micSub}>Distance, lie, wind, trouble or club</Text></TouchableOpacity><Text style={s.heard}>{heard}</Text><View style={s.panel}><Text style={s.answerLabel}>CADDIE SAYS</Text><Text style={s.answer}>{caddieText}</Text><Text style={s.bigClub}>{result.club}</Text></View><Field label={`DISTANCE · ${units==='METRES'?'METRES':'YARDS'}`} value={distance} onChangeText={setDistance} keyboardType="numeric"/><Seg items={LIES} value={lie} setValue={setLie}/><Field label="WIND" value={wind} onChangeText={setWind} keyboardType="numeric"/><Seg items={WIND} value={windDir} setValue={setWindDir}/><Field label="ELEVATION %" value={elev} onChangeText={setElev} keyboardType="numeric"/><Btn text="SAVE CADDIE NOTE TO HOLE" onPress={recordAdvice}/></>}
+function Bag({bag,setBag,units}){const names=bag.map(x=>x[0]),add=name=>{if(!names.includes(name))setBag([...bag,[name,name==='Putter'?0:100]])},del=name=>setBag(bag.filter(x=>x[0]!==name)),change=(i,d)=>setBag(bag.map((x,k)=>k===i?[x[0],Math.max(0,x[1]+d)]:x));return <><Title kicker="MY BAG" title="Build Your Bag" sub="Your distances power Practice and Caddie"/><View style={s.panel}><Text style={s.panelTitle}>CLUB LIBRARY</Text><View style={s.chips}>{CLUB_LIBRARY.filter(x=>!names.includes(x)).map(x=><TouchableOpacity key={x} style={s.chip} onPress={()=>add(x)}><Text style={s.chipText}>+ {x}</Text></TouchableOpacity>)}</View></View>{bag.map((x,i)=><View style={s.bagRow} key={x[0]}><View style={s.flex}><Text style={s.cardTitle}>{x[0]}</Text><Text style={s.cardSub}>{yd(x[1],units)} {units==='METRES'?'m':'yd'}</Text></View><TouchableOpacity style={s.step} onPress={()=>change(i,-1)}><Text style={s.stepText}>−</Text></TouchableOpacity><TouchableOpacity style={s.step} onPress={()=>change(i,1)}><Text style={s.stepText}>+</Text></TouchableOpacity><TouchableOpacity onPress={()=>del(x[0])}><Text style={s.remove}>REMOVE</Text></TouchableOpacity></View>)}</>}
+function Course({course,setCourse,tee,setTee,hole,setHole,gps,getGPS,open,markTarget,currentTarget,setTargets}){
+ const[q,setQ]=useState(''),[results,setResults]=useState([]),[searching,setSearching]=useState(false),[importing,setImporting]=useState(false);
+ const searchCourses=async()=>{const term=q.trim();if(term.length<2)return Alert.alert('Course search','Type at least two letters of the course name.');setSearching(true);try{const r=await fetch(`https://api.opengolfapi.org/v1/courses/search?q=${encodeURIComponent(term)}&limit=12`);if(!r.ok)throw new Error(`HTTP ${r.status}`);const j=await r.json();const a=Array.isArray(j)?j:(j?.courses||j?.results||j?.data||[]);setResults(Array.isArray(a)?a:[]);if(!a?.length)Alert.alert('Course search','No matching course found. You can still enter and map it manually.')}catch(e){Alert.alert('Course search','The online course directory is unavailable right now. Manual setup still works.')}finally{setSearching(false)}};
+ const point=v=>{if(!v||typeof v!=='object')return null;const lat=Number(v.lat??v.latitude??v.y),lon=Number(v.lon??v.lng??v.longitude??v.x);return Number.isFinite(lat)&&Number.isFinite(lon)?{lat,lon}:null};
+ const holeTarget=h=>{const g=h?.green||h?.coordinates||h?.gps||{};return{front:point(h?.front||h?.green_front||h?.greenFront||g?.front),center:point(h?.center||h?.green_center||h?.greenCenter||h?.pin||g?.center||g?.green),back:point(h?.back||h?.green_back||h?.greenBack||g?.back)}};
+ const selectCourse=async item=>{const id=item?.id??item?.course_id??item?.courseId;if(id===undefined||id===null)return Alert.alert('Course import','This course record has no usable ID.');setImporting(true);try{const [cr,hr,tr]=await Promise.all([fetch(`https://api.opengolfapi.org/v1/courses/${id}`),fetch(`https://api.opengolfapi.org/v1/courses/${id}/holes`),fetch(`https://api.opengolfapi.org/v1/courses/${id}/tees`)]);const c=cr.ok?await cr.json():item,hj=hr.ok?await hr.json():[],tj=tr.ok?await tr.json():[];const name=c?.name||c?.course_name||item?.name||item?.course_name||'Golf Course';setCourse(name);const hs=Array.isArray(hj)?hj:(hj?.holes||hj?.data||[]);if(Array.isArray(hs)&&hs.length){const mapped=Array.from({length:18},(_,i)=>holeTarget(hs[i]||{}));if(mapped.some(x=>x.front||x.center||x.back))setTargets(mapped)}const tees=Array.isArray(tj)?tj:(tj?.tees||tj?.data||[]);if(Array.isArray(tees)&&tees.length){const preferred=tees.find(x=>String(x?.color||x?.name||'').toLowerCase()===String(tee).toLowerCase())||tees[0];const raw=String(preferred?.color||preferred?.name||'');const match=TEES.find(x=>x.toLowerCase()===raw.toLowerCase());if(match)setTee(match)}setResults([]);setQ('');Alert.alert('Course loaded',`${name} is now stored with your local CaddieOS data. Any missing green points can still be mapped manually.`)}catch(e){Alert.alert('Course import','Could not import this course. Manual course setup is still available.')}finally{setImporting(false)}};
+ return <><Title kicker="MAP & PLAY" title="Course"/>
+ <Panel><Label text="COURSE DIRECTORY"/><View style={{flexDirection:'row',gap:7}}><TextInput value={q} onChangeText={setQ} onSubmitEditing={searchCourses} placeholder="Search course name" placeholderTextColor="#8A8F91" style={[s.input,{flex:1,marginBottom:0}]}/><TouchableOpacity onPress={searchCourses} disabled={searching} style={{backgroundColor:C.gold,borderRadius:10,paddingHorizontal:13,justifyContent:'center',opacity:searching?.65:1}}><Text style={{fontWeight:'900',color:C.text,fontSize:12}}>{searching?'SEARCHING':'SEARCH'}</Text></TouchableOpacity></View><Text style={[s.smallGrey,{marginTop:7}]}>Search OpenGolfAPI, then save the selected course locally. Manual mapping remains available.</Text>{results.map((x,i)=>{const name=x?.name||x?.course_name||'Golf Course',place=[x?.city,x?.state,x?.country].filter(Boolean).join(', ');return <TouchableOpacity key={String(x?.id??x?.course_id??i)} onPress={()=>selectCourse(x)} style={{paddingVertical:10,borderTopWidth:1,borderTopColor:C.line}}><Text style={{color:C.text,fontWeight:'900'}}>{name}</Text>{place?<Text style={s.smallGrey}>{place}</Text>:null}</TouchableOpacity>})}{importing?<Text style={{color:C.gold,fontWeight:'900',marginTop:8}}>IMPORTING COURSE…</Text>:null}<Text style={[s.smallGrey,{marginTop:8}]}>Contains data from OpenGolfAPI (opengolfapi.org).</Text></Panel>
+ <Panel><Label text="COURSE NAME"/><TextInput value={course} onChangeText={setCourse} placeholder="Enter course" placeholderTextColor="#8A8F91" style={s.input}/><Label text="TEE"/><View style={s.chips}>{TEES.map(x=><Chip key={x} active={tee===x} text={x} onPress={()=>setTee(x)}/>)}</View></Panel>
+ <Panel><View style={s.holeTop}><View><Text style={s.holeLabel}>CURRENT HOLE</Text><Text style={s.holeBig}>{hole}</Text></View><View style={s.holeBtns}><Mini text="−" onPress={()=>setHole(String(Math.max(1,n(hole)-1)))}/><Mini text="+" onPress={()=>setHole(String(Math.min(18,n(hole)+1)))}/></View></View><TouchableOpacity style={s.gps} onPress={getGPS}><Text style={s.gpsText}>⌖  GET GPS POSITION</Text></TouchableOpacity>{gps&&<Text style={s.gpsLine}>{gps.lat}, {gps.lon} · ±{gps.acc} m</Text>}<View style={s.divider}/><Text style={s.subTitle}>MAP GREEN — HOLE {hole}</Text><Text style={s.smallGrey}>Stand at each point and save its GPS coordinate. Imported courses can still be corrected here.</Text><View style={s.mapBtns}>{['front','center','back'].map(k=><TouchableOpacity key={k} style={[s.mapBtn,currentTarget?.[k]&&s.mapBtnDone]} onPress={()=>markTarget(k)}><Text style={s.mapBtnTxt}>{k.toUpperCase()}</Text></TouchableOpacity>)}</View></Panel>
+ <TouchableOpacity style={s.infoBtn} onPress={()=>open('COURSEINFO')}><Text style={s.infoBtnText}>COURSE INFORMATION</Text></TouchableOpacity></>}
 
-function Shell() {
-  const { height, width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const compact = height < 780 || width < 380;
+function More({units,handicap,open}){return <><Title kicker="MORE" title="Tools & Settings"/><Info a="UNITS" b={units}/><Info a="HANDICAP" b={handicap||'Not set'}/>{[['SETTINGS','SETTINGS'],['SCORECARD','SCORE'],['PRACTICE','PRACTICE'],['WARM-UP','WARMUP'],['ROUTINE SETUP','ROUTINES'],['ROUND SUMMARY','SUMMARY'],['POST-ROUND CADDIE','POSTROUND'],['COURSE INFO','COURSEINFO']].map(x=><TouchableOpacity key={x[0]} style={s.listRow} onPress={()=>open(x[1])}><Text style={s.cardTitle}>{x[0]}</Text><Text style={s.chev}>›</Text></TouchableOpacity>)}</>}
+const Info=({a,b})=><View style={s.info}><Text style={s.label}>{a}</Text><Text style={s.cardTitle}>{b}</Text></View>;
+function Score({scores,setScores,putts,setPutts,gir,setGir,fw,setFw,pen,setPen,total,toPar,played,roundLog,setRoundLog,open}){const setA=(setter,a,i,v)=>setter(a.map((x,k)=>k===i?v:x));return <><Title kicker="ROUND" title="Scorecard" sub={`${played}/18 holes · ${total||0} strokes · ${toPar>=0?'+':''}${toPar}`}/>{scores.map((v,i)=><View style={s.scoreRow} key={i}><Text style={s.holeNo}>{i+1}</Text><Text style={s.par}>P{PARS[i]}</Text><TextInput style={s.scoreInput} value={v} onChangeText={x=>setA(setScores,scores,i,x)} keyboardType="numeric" placeholder="S"/><TextInput style={s.scoreInput} value={putts[i]} onChangeText={x=>setA(setPutts,putts,i,x)} keyboardType="numeric" placeholder="P"/><TouchableOpacity style={[s.toggle,gir[i]&&s.toggleOn]} onPress={()=>setA(setGir,gir,i,!gir[i])}><Text style={s.toggleText}>GIR</Text></TouchableOpacity><TouchableOpacity style={[s.toggle,fw[i]&&s.toggleOn]} onPress={()=>setA(setFw,fw,i,!fw[i])}><Text style={s.toggleText}>FW</Text></TouchableOpacity><TextInput style={s.scoreInput} value={pen[i]} onChangeText={x=>setA(setPen,pen,i,x)} keyboardType="numeric" placeholder="+"/></View>)}<Btn text="ROUND SUMMARY" onPress={()=>open('SUMMARY')}/><Btn text="POST-ROUND CADDIE" onPress={()=>open('POSTROUND')} outline/></>}
+function Practice({bag,units,practiceClub,setPracticeClub,practiceAdj,setPracticeAdj,shape,setShape,shotResult,setShotResult,practiceHistory,setPracticeHistory}){const clubs=bag.filter(x=>x[0]!=='Putter'),base=clubs.find(x=>x[0]===practiceClub)?.[1]??clubs[0]?.[1]??0,index=Math.max(0,clubs.findIndex(x=>x[0]===practiceClub)),target=Math.max(0,yd(base,units)+practiceAdj);useEffect(()=>{if(clubs.length&&!clubs.some(x=>x[0]===practiceClub))setPracticeClub(clubs[0][0])},[bag]);const prev=()=>setPracticeClub(clubs[(index-1+clubs.length)%clubs.length]?.[0]||''),next=()=>setPracticeClub(clubs[(index+1)%clubs.length]?.[0]||'');const save=()=>{setPracticeHistory([{date:new Date().toISOString(),club:practiceClub,target,shape,result:shotResult},...practiceHistory].slice(0,100));Alert.alert('Saved','Practice shot saved.')};return <><Title kicker="PRACTICE" title="Club Choice" sub="Powered directly by My Bag"/><View style={s.clubPicker}><TouchableOpacity onPress={prev}><Text style={s.arrow}>‹</Text></TouchableOpacity><View style={s.center}><Text style={s.bigClub}>{practiceClub.toUpperCase()}</Text><Text style={s.cardSub}>From My Bag: {yd(base,units)} {units==='METRES'?'m':'yd'}</Text></View><TouchableOpacity onPress={next}><Text style={s.arrow}>›</Text></TouchableOpacity></View><View style={s.panel}><Text style={s.panelTitle}>TARGET</Text><Text style={s.target}>{target}</Text><Text style={s.cardSub}>{units==='METRES'?'metres':'yards'}</Text><View style={s.adjust}><TouchableOpacity style={s.stepBig} onPress={()=>setPracticeAdj(x=>x-1)}><Text style={s.stepText}>−</Text></TouchableOpacity><TouchableOpacity style={s.stepBig} onPress={()=>setPracticeAdj(x=>x+1)}><Text style={s.stepText}>+</Text></TouchableOpacity></View><Text style={s.small}>Adjustment applies to this practice shot only. My Bag is unchanged.</Text></View><Text style={s.label}>SHOT SHAPE</Text><Seg items={['Straight','Draw','Fade']} value={shape} setValue={setShape}/><Text style={s.label}>RESULT</Text><Seg items={['Good','Left','Right','Short','Long']} value={shotResult} setValue={setShotResult}/><Btn text="SAVE SHOT" onPress={save}/></>}
+function WarmUp({done,setDone}){const toggle=i=>setDone(done.includes(i)?done.filter(x=>x!==i):[...done,i]);return <><Title kicker="PRE-ROUND" title="10-Minute Flow Warm-Up" sub={`${done.length}/8 complete`}/><Text style={s.phase}>PHASE 1 · WAKE UP THE BODY · 3 MIN</Text>{WARM.slice(0,3).map((x,i)=><Check key={i} n={i+1} x={x} on={done.includes(i)} tap={()=>toggle(i)}/>)}<Text style={s.phase}>PHASE 2 · BUILD THE FEEL · 4 MIN</Text>{WARM.slice(3,6).map((x,j)=><Check key={j+3} n={j+4} x={x} on={done.includes(j+3)} tap={()=>toggle(j+3)}/>)}<Text style={s.phase}>PHASE 3 · CALIBRATE THE TOUCH · 3 MIN</Text>{WARM.slice(6).map((x,j)=><Check key={j+6} n={j+7} x={x} on={done.includes(j+6)} tap={()=>toggle(j+6)}/>)}<Btn text="READY TO PLAY" onPress={()=>setDone(WARM.map((_,i)=>i))}/></>}
+const Check=({n,x,on,tap})=><TouchableOpacity style={[s.check,on&&s.checkOn]} onPress={tap}><Text style={s.checkNo}>{n}</Text><View style={s.flex}><Text style={s.cardTitle}>{x[0]}</Text><Text style={s.cardSub}>{x[1]}</Text></View><Text style={s.checkMark}>{on?'✓':'○'}</Text></TouchableOpacity>;
+function RoutineSetup({steps,setSteps,done,setDone}){const toggle=i=>setDone(done.includes(i)?done.filter(x=>x!==i):[...done,i]);return <><Title kicker="MENTAL GAME" title="Routine Setup" sub={`${done.length}/9 complete`}/>{steps.map((x,i)=><View style={s.routineRow} key={i}><TouchableOpacity style={[s.numBox,done.includes(i)&&s.numBoxOn]} onPress={()=>toggle(i)}><Text style={s.numText}>{i+1}</Text></TouchableOpacity><TextInput style={[s.input,s.flex]} value={x} onChangeText={v=>setSteps(steps.map((a,k)=>k===i?v:a))}/></View>)}<TouchableOpacity style={[s.repeat,done.includes(8)&&s.checkOn]} onPress={()=>toggle(8)}><Text style={s.repeatNo}>9</Text><View><Text style={s.repeatTitle}>REPEAT</Text><Text style={s.cardSub}>Use the same routine for the next shot.</Text></View></TouchableOpacity></>}
+function Settings({player,setPlayer,handicap,setHandicap,units,setUnits,signOut}){return <><Title kicker="SETTINGS" title="Player Settings"/><Field label="PLAYER" value={player} onChangeText={setPlayer}/><Field label="HANDICAP" value={handicap} onChangeText={setHandicap} keyboardType="numeric"/><Text style={s.label}>UNITS</Text><Seg items={['METRES','YARDS']} value={units} setValue={setUnits}/><Btn text="SIGN OUT" onPress={signOut}/></>}
+function Summary({scores,putts,total,totalPutts,toPar,totalPen,roundLog,open}){return <><Title kicker="ROUND" title="Round Summary" sub={`${total} strokes · ${toPar>=0?'+':''}${toPar} · ${totalPutts} putts · ${totalPen} penalties`}/>{scores.map((x,i)=>x?<View style={s.summaryRow} key={i}><Text style={s.holeNo}>{i+1}</Text><View style={s.flex}><Text style={s.cardTitle}>Score {x} · Putts {putts[i]||0}</Text><Text style={s.cardSub}>{roundLog[i]?.club?`${roundLog[i].club} · ${roundLog[i].result||'No result noted'}`:'No caddie note saved'}</Text></View></View>:null)}<Btn text="POST-ROUND CADDIE" onPress={()=>open('POSTROUND')}/></>}
+function PostRound({scores,putts,gir,fw,pen,roundLog,toPar,totalPutts,totalPen,practiceHistory}){const played=scores.filter(Boolean).length,girs=gir.filter(Boolean).length,fws=fw.filter(Boolean).length,threePutts=putts.filter(x=>n(x)>=3).length,badHoles=scores.map((x,i)=>x&&n(x)-PARS[i]>=2?i+1:null).filter(Boolean),clubUse={};roundLog.forEach(x=>{if(x.club)clubUse[x.club]=(clubUse[x.club]||0)+1});const common=Object.entries(clubUse).sort((a,b)=>b[1]-a[1])[0]?.[0]||'Not enough data';const priorities=[];if(threePutts>1)priorities.push('Putting pace: reduce three-putts with long-distance speed drills.');if(totalPen>0)priorities.push('Penalty control: choose safer targets when trouble brings a big number into play.');if(played&&girs/played<.45)priorities.push('Approach play: work on start line and carry control with your mid-irons.');if(played&&fws/played<.5)priorities.push('Tee strategy: tighten your preferred shape and choose a conservative miss.');if(!priorities.length)priorities.push('Maintain the same decision routine and sharpen scoring shots inside 100.');return <><Title kicker="AFTER THE ROUND" title="Post-Round Caddie" sub="Turn today’s round into tomorrow’s plan"/><View style={s.statRow}><Stat a={played?`${toPar>=0?'+':''}${toPar}`:'—'} b="TO PAR"/><Stat a={totalPutts} b="PUTTS"/><Stat a={totalPen} b="PENALTIES"/></View><View style={s.panel}><Text style={s.panelTitle}>CADDIE REVIEW</Text><Text style={s.answer}>{played?`You completed ${played} holes. You hit ${girs} greens and ${fws} fairways, with ${threePutts} three-putt holes.`:'Complete a scored round to unlock a stronger review.'}</Text></View><View style={s.panel}><Text style={s.panelTitle}>WHAT WENT WELL</Text><Text style={s.answer}>{totalPen===0?'No penalty shots recorded — good course management.':'You kept enough data to identify where the round can improve.'}</Text></View><View style={s.panel}><Text style={s.panelTitle}>WHERE SHOTS WERE LOST</Text><Text style={s.answer}>{badHoles.length?`Big-number holes: ${badHoles.join(', ')}.`:'No double-bogey-or-worse holes identified from the scores entered.'}</Text></View><View style={s.panel}><Text style={s.panelTitle}>DECISION PATTERN</Text><Text style={s.answer}>Most recorded Caddie recommendation: {common}. Review whether those shots matched your intended result.</Text></View><View style={s.panel}><Text style={s.panelTitle}>NEXT PRACTICE PRIORITIES</Text>{priorities.map((x,i)=><Text key={i} style={s.priority}>{i+1}. {x}</Text>)}<Text style={s.small}>Practice history saved: {practiceHistory.length} shots.</Text></View></>}
+function CourseInfo({course,info,setInfo}){const change=(k,v)=>setInfo({...info,[k]:v});return <><Title kicker="COURSE INFO" title={course||'Course Information'} sub="Keep the practical details in one place"/><Field label="PHONE" value={info.phone} onChangeText={v=>change('phone',v)}/><Field label="MEMBERSHIP" value={info.membership} onChangeText={v=>change('membership',v)}/><Field label="CART AVAILABLE" value={info.cart} onChangeText={v=>change('cart',v)}/><Field label="CLUB HIRE" value={info.hire} onChangeText={v=>change('hire',v)}/><Field label="PRO SHOP" value={info.proshop} onChangeText={v=>change('proshop',v)}/><Field label="GOLF PRO" value={info.pro} onChangeText={v=>change('pro',v)}/><Field label="OVERVIEW" value={info.overview} onChangeText={v=>change('overview',v)}/></>}
 
-  const [entered, setEntered] = useState(false);
-  const [tab, setTab] = useState('HOME');
-  const [screen, setScreen] = useState(null);
-  const [units, setUnits] = useState('METRES');
-  const [player, setPlayer] = useState('Player');
-  const [email, setEmail] = useState('');
-  const [handicap, setHandicap] = useState('');
-  const [bag, setBag] = useState(DEFAULT_BAG);
-  const [course, setCourse] = useState('');
-  const [tee, setTee] = useState('White');
-  const [hole, setHole] = useState('1');
-  const [targets, setTargets] = useState(blankTargets());
-  const [gps, setGps] = useState(null);
-
-  const [scores, setScores] = useState(Array(18).fill(''));
-  const [putts, setPutts] = useState(Array(18).fill(''));
-  const [gir, setGir] = useState(Array(18).fill(false));
-  const [fw, setFw] = useState(Array(18).fill(false));
-  const [pen, setPen] = useState(Array(18).fill(''));
-  const [notes, setNotes] = useState(Array(18).fill(''));
-  const [roundLog, setRoundLog] = useState(blankResults());
-
-  const [distance, setDistance] = useState('150');
-  const [wind, setWind] = useState('0');
-  const [windDir, setWindDir] = useState('HEAD');
-  const [elev, setElev] = useState('0');
-  const [lie, setLie] = useState('Fairway');
-
-  const [heard, setHeard] = useState('Tap the microphone and ask your caddie.');
-  const [listening, setListening] = useState(false);
-
-  const [practiceClub, setPracticeClub] = useState('7 Iron');
-  const [practiceAdj, setPracticeAdj] = useState(0);
-  const [shape, setShape] = useState('Straight');
-  const [shotResult, setShotResult] = useState('Good');
-  const [practiceHistory, setPracticeHistory] = useState([]);
-
-  const [warmDone, setWarmDone] = useState([]);
-  const [routineSteps, setRoutineSteps] = useState(ROUTINE_DEFAULT);
-  const [routineDone, setRoutineDone] = useState([]);
-
-  const [courseInfo, setCourseInfo] = useState({
-    phone: '', email: '', membership: 'Members & visitors welcome',
-    cart: 'Yes', hire: 'Yes', proshop: 'Yes', pro: '', overview: ''
-  });
-
-  const total = scores.reduce((a, b) => a + n(b), 0);
-  const played = scores.filter(Boolean).length;
-  const idx = Math.min(17, Math.max(0, n(hole) - 1));
-  const toPar = scores.reduce((a, v, i) => a + (v ? n(v) - PARS[i] : 0), 0);
-  const totalPutts = putts.reduce((a, b) => a + n(b), 0);
-
-  const result = useMemo(() => {
-    const adjustedYardage = playsLike(distance, wind, elev, lie, windDir, units);
-    const matchedClub = nearestClub(adjustedYardage, bag, units);
-    return { y: adjustedYardage, club: matchedClub.name };
-  }, [distance, wind, elev, lie, windDir, units, bag]);
-
-  const caddieText = useMemo(() => 
-    advice(result.y, result.club, lie, wind, windDir, elev, units), 
-    [result, lie, wind, windDir, elev, units]
-  );
-
-  const gp = gps ? { lat: Number(gps.lat), lon: Number(gps.lon) } : null;
-  const targetDistances = {
-    front: haversine(gp, targets[idx]?.front, units),
-    center: haversine(gp, targets[idx]?.center, units),
-    back: haversine(gp, targets[idx]?.back, units)
-  };
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE);
-        if (active && raw) {
-          const x = JSON.parse(raw);
-          const setters = {
-            units: setUnits, player: setPlayer, email: setEmail, handicap: setHandicap, bag: setBag,
-            course: setCourse, tee: setTee, targets: setTargets, scores: setScores, putts: setPutts,
-            gir: setGir, fw: setFw, pen: setPen, notes: setNotes, roundLog: setRoundLog,
-            practiceHistory: setPracticeHistory, routineSteps: setRoutineSteps, courseInfo: setCourseInfo
-          };
-          Object.entries(setters).forEach(([k, set]) => x[k] !== undefined && set(x[k]));
-        }
-      } catch {}
-    })();
-
-    Tts.setDefaultLanguage('en-AU').catch(() => {});
-
-
-
-    Voice.onSpeechStart = () => setListening(true);
-    Voice.onSpeechEnd = () => setListening(false);
-    Voice.onSpeechError = () => setListening(false);
-    Voice.onSpeechResults = e => {
-      const spoken = e?.value?.[0];
-      if (spoken) {
-        setHeard(spoken);
-        parseSpeech(spoken, { setDistance, setWind, setWindDir, setElev, setLie });
-      }
-      setListening(false);
-    };
-    return () => {
-      active = false;
-      Voice.destroy().then(Voice.removeAllListeners).catch(() => {});
-    };
-  }, []);
-
-  const toggleListening = async () => {
-    try {
-      if (listening) { await Voice.stop(); setListening(false); }
-      else { setHeard('Listening...'); await Voice.start('en-AU'); }
-    } catch { setListening(false); }
-  };
-
-  const saveAll = async () => {
-    try {
-      await AsyncStorage.setItem(STORAGE, JSON.stringify({units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo}));
-    } catch {}
-  };
-
-  const requestGps = async () => {
-    try {
-      if (Platform.OS === 'android') {
-        const ok = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
-        if (ok !== PermissionsAndroid.RESULTS.GRANTED) return;
-      }
-      Geolocation.getCurrentPosition(pos => setGps({lat:pos.coords.latitude,lon:pos.coords.longitude}), () => {}, {enableHighAccuracy:true,timeout:12000,maximumAge:5000});
-    } catch {}
-  };
-
-  if (!entered) return (
-    <SafeAreaView style={styles.root}>
-      <View style={styles.login}><Text style={styles.logo}>CADDIE<Text style={styles.gold}>OS</Text></Text><Text style={styles.tag}>YOUR CADDIE. YOUR GAME.</Text><TextInput style={styles.input} value={player} onChangeText={setPlayer} placeholder="Player name" placeholderTextColor="#667581"/><TextInput style={styles.input} value={handicap} onChangeText={setHandicap} placeholder="Handicap" placeholderTextColor="#667581" keyboardType="numeric"/><TouchableOpacity style={styles.primary} onPress={()=>setEntered(true)}><Text style={styles.primaryText}>ENTER CADDIEOS</Text></TouchableOpacity></View>
-    </SafeAreaView>
-  );
-
-  return (
-    <SafeAreaView style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
-      <View style={styles.header}><Text style={styles.logoSmall}>CADDIE<Text style={styles.gold}>OS</Text></Text><Text style={styles.hole}>HOLE {hole} · PAR {PARS[idx]}</Text></View>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {tab==='HOME' && <View><Text style={styles.pageTitle}>HOME</Text><TouchableOpacity style={styles.primary} onPress={()=>setTab('CADDIE')}><Text style={styles.primaryText}>START ROUND</Text></TouchableOpacity><TouchableOpacity style={styles.card} onPress={requestGps}><Text style={styles.cardTitle}>GPS</Text><Text style={styles.body}>{gps?'GPS FIX READY':'Tap to get GPS fix'}</Text></TouchableOpacity><TouchableOpacity style={styles.card} onPress={saveAll}><Text style={styles.cardTitle}>SAVE</Text><Text style={styles.body}>Save player, course, bag and round</Text></TouchableOpacity></View>}
-        {tab==='CADDIE' && <View><Text style={styles.pageTitle}>CADDIE</Text><View style={styles.card}><Text style={styles.cardTitle}>PLAYS LIKE</Text><Text style={styles.big}>{result.y} {units==='METRES'?'m':'yd'}</Text><Text style={styles.club}>{result.club}</Text><Text style={styles.body}>{caddieText}</Text></View><TouchableOpacity style={styles.mic} onPress={toggleListening}><Text style={styles.micText}>{listening?'LISTENING…':'🎙  ASK CADDIE'}</Text></TouchableOpacity><View style={styles.card}><Text style={styles.cardTitle}>HEARD</Text><Text style={styles.body}>{heard}</Text></View><View style={styles.row}><TextInput style={[styles.input,styles.flex]} value={distance} onChangeText={setDistance} keyboardType="numeric" placeholder="Distance"/><TextInput style={[styles.input,styles.flex]} value={wind} onChangeText={setWind} keyboardType="numeric" placeholder="Wind"/></View><View style={styles.row}>{WIND.map(w=><TouchableOpacity key={w} style={[styles.chip,windDir===w&&styles.chipOn]} onPress={()=>setWindDir(w)}><Text style={styles.chipText}>{w}</Text></TouchableOpacity>)}</View><View style={styles.row}><TouchableOpacity style={styles.navButton} onPress={()=>setHole(String(Math.max(1,n(hole)-1)))}><Text style={styles.navText}>‹ PREV</Text></TouchableOpacity><TouchableOpacity style={styles.navButton} onPress={()=>setHole(String(Math.min(18,n(hole)+1)))}><Text style={styles.navText}>NEXT ›</Text></TouchableOpacity></View></View>}
-        {tab==='BAG' && <View><Text style={styles.pageTitle}>MY BAG</Text>{bag.map((b,i)=><View key={i} style={styles.bagRow}><Text style={styles.body}>{b[0]}</Text><TextInput style={styles.bagInput} value={String(b[1])} keyboardType="numeric" onChangeText={v=>setBag(x=>x.map((q,j)=>j===i?[q[0],n(v)]:q))}/></View>)}</View>}
-        {tab==='COURSE' && <View><Text style={styles.pageTitle}>COURSE</Text><TextInput style={styles.input} value={course} onChangeText={setCourse} placeholder="Course name"/><Text style={styles.cardTitle}>TEE</Text><View style={styles.row}>{TEES.map(t=><TouchableOpacity key={t} style={[styles.chip,tee===t&&styles.chipOn]} onPress={()=>setTee(t)}><Text style={styles.chipText}>{t}</Text></TouchableOpacity>)}</View><TouchableOpacity style={styles.primary} onPress={requestGps}><Text style={styles.primaryText}>GET GPS FIX</Text></TouchableOpacity></View>}
-        {tab==='MORE' && <View><Text style={styles.pageTitle}>MORE</Text><View style={styles.card}><Text style={styles.cardTitle}>ROUND</Text><Text style={styles.body}>Score {total || '—'} · Holes {played} · To par {toPar>=0?'+':''}{toPar}</Text><Text style={styles.body}>Putts {totalPutts}</Text></View><TouchableOpacity style={styles.primary} onPress={saveAll}><Text style={styles.primaryText}>SAVE ALL</Text></TouchableOpacity></View>}
-      </ScrollView>
-      <View style={styles.bottom}>{NAV.map(x=><TouchableOpacity key={x} style={styles.tab} onPress={()=>setTab(x)}><Text style={[styles.tabText,tab===x&&styles.tabOn]}>{x}</Text></TouchableOpacity>)}</View>
-    </SafeAreaView>
-  );
-}
-
-const styles=StyleSheet.create({
-  root:{flex:1,backgroundColor:C.bg},login:{flex:1,justifyContent:'center',padding:22},logo:{fontSize:42,fontWeight:'900',color:C.white,textAlign:'center'},logoSmall:{fontSize:22,fontWeight:'900',color:C.white},gold:{color:C.gold2},tag:{color:C.gold2,textAlign:'center',marginBottom:28,letterSpacing:2},header:{paddingHorizontal:16,paddingVertical:10,flexDirection:'row',justifyContent:'space-between',alignItems:'center',borderBottomWidth:1,borderBottomColor:C.gold},hole:{color:C.gold2,fontWeight:'800'},scroll:{padding:14,paddingBottom:90},pageTitle:{fontSize:20,fontWeight:'900',color:C.gold2,marginBottom:10},card:{backgroundColor:C.panel,padding:14,borderRadius:10,marginBottom:10},cardTitle:{fontSize:12,fontWeight:'900',color:C.navy,letterSpacing:1},body:{fontSize:15,color:C.text,marginTop:5},big:{fontSize:42,fontWeight:'900',color:C.navy},club:{fontSize:24,fontWeight:'900',color:C.blue,marginBottom:8},input:{backgroundColor:C.panel,color:C.text,borderRadius:8,paddingHorizontal:12,paddingVertical:10,marginBottom:10,fontSize:16},primary:{backgroundColor:C.gold,padding:14,borderRadius:9,alignItems:'center',marginBottom:10},primaryText:{color:C.dark,fontWeight:'900'},mic:{backgroundColor:C.blue,padding:18,borderRadius:12,alignItems:'center',marginBottom:10},micText:{color:C.white,fontSize:18,fontWeight:'900'},row:{flexDirection:'row',gap:6,marginBottom:8,flexWrap:'wrap'},flex:{flex:1,minWidth:120},chip:{backgroundColor:C.bg2,borderWidth:1,borderColor:C.gold,paddingVertical:9,paddingHorizontal:10,borderRadius:8},chipOn:{backgroundColor:C.blue},chipText:{color:C.white,fontWeight:'800'},navButton:{flex:1,backgroundColor:C.panel2,padding:12,borderRadius:8,alignItems:'center'},navText:{color:C.navy,fontWeight:'900'},bagRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',backgroundColor:C.panel,padding:9,borderRadius:8,marginBottom:5},bagInput:{backgroundColor:C.white,color:C.text,width:82,textAlign:'center',padding:7,borderRadius:6},bottom:{position:'absolute',bottom:0,left:0,right:0,flexDirection:'row',backgroundColor:C.dark,borderTopWidth:1,borderTopColor:C.gold,paddingBottom:8,paddingTop:8},tab:{flex:1,alignItems:'center'},tabText:{fontSize:10,fontWeight:'800',color:C.gold},tabOn:{color:C.white}
-});
+const s=StyleSheet.create({flex:{flex:1},safe:{flex:1,backgroundColor:C.bg},loginSafe:{flex:1,backgroundColor:C.dark},body:{paddingHorizontal:12,paddingTop:8,paddingBottom:18},bodyCompact:{paddingHorizontal:9,paddingTop:5,paddingBottom:10},header:{minHeight:58,paddingHorizontal:12,paddingVertical:8,backgroundColor:C.bg,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderColor:'#12384D'},brand:{fontSize:23,fontWeight:'900',color:C.white,letterSpacing:1.2},brandGold:{color:C.gold2},brandSub:{fontSize:8,color:C.gold2,letterSpacing:1},anti:{fontSize:9,color:C.gold2,fontWeight:'800'},nav:{flexDirection:'row',backgroundColor:C.dark,borderTopWidth:1,borderColor:'#24485C',paddingTop:8,minHeight:58},navItem:{flex:1,alignItems:'center',justifyContent:'center'},navText:{fontSize:10,fontWeight:'800',color:'#93A2AC'},navOn:{color:C.gold2},title:{marginBottom:10},kicker:{fontSize:10,fontWeight:'900',letterSpacing:1.3,color:C.gold2},h1:{fontSize:28,fontWeight:'900',color:C.white},sub:{fontSize:13,color:'#C2CDD3',marginTop:2},panel:{backgroundColor:C.panel,borderRadius:14,padding:14,marginBottom:10,borderWidth:1,borderColor:C.line},panelTitle:{fontSize:11,fontWeight:'900',letterSpacing:1,color:C.navy,marginBottom:8},btn:{backgroundColor:C.gold,borderRadius:12,paddingVertical:14,paddingHorizontal:10,alignItems:'center',justifyContent:'center',marginBottom:9,minHeight:48},btnOutline:{backgroundColor:'transparent',borderWidth:1,borderColor:C.gold},btnText:{fontWeight:'900',color:C.dark,fontSize:12,letterSpacing:.5},btnTextOutline:{color:C.gold2},fieldWrap:{marginBottom:9},label:{fontSize:10,fontWeight:'900',letterSpacing:1,color:C.gold2,marginBottom:5},input:{backgroundColor:C.panel,borderWidth:1,borderColor:C.line,borderRadius:10,paddingHorizontal:12,paddingVertical:10,color:C.text,fontWeight:'700',minHeight:42},seg:{flexDirection:'row',flexWrap:'wrap',gap:6,marginBottom:10},segItem:{backgroundColor:'#153348',borderRadius:9,paddingHorizontal:10,paddingVertical:9,borderWidth:1,borderColor:'#315064'},segOn:{backgroundColor:C.gold,borderColor:C.gold},segText:{fontSize:10,fontWeight:'800',color:C.white},segTextOn:{color:C.dark},statRow:{flexDirection:'row',gap:8,marginBottom:10},stat:{flex:1,backgroundColor:C.panel,borderRadius:12,paddingVertical:10,alignItems:'center',borderWidth:1,borderColor:C.line},statA:{fontSize:21,fontWeight:'900',color:C.navy},statB:{fontSize:9,fontWeight:'900',color:C.muted},grid:{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:10},homeCard:{width:'48.5%',backgroundColor:C.panel,borderRadius:13,padding:13,minHeight:92,borderWidth:1,borderColor:C.line},cardTitle:{fontSize:13,fontWeight:'900',color:C.navy},cardSub:{fontSize:11,color:C.muted,marginTop:3,lineHeight:16},distanceRow:{flexDirection:'row',gap:6},small:{fontSize:10,color:C.muted,marginTop:5},bigClub:{fontSize:23,fontWeight:'900',color:C.navy,marginVertical:3},mic:{backgroundColor:C.gold,borderRadius:18,padding:20,alignItems:'center',marginBottom:8},micIcon:{fontSize:28,color:C.dark},micTitle:{fontSize:20,fontWeight:'900',color:C.dark},micSub:{fontSize:11,color:C.dark,marginTop:3},heard:{color:'#D4DEE3',fontSize:11,marginBottom:10,textAlign:'center'},answerLabel:{fontSize:10,fontWeight:'900',letterSpacing:1,color:C.navy},answer:{fontSize:14,color:C.text,lineHeight:20,fontWeight:'700'},chips:{flexDirection:'row',flexWrap:'wrap',gap:6},chip:{paddingHorizontal:9,paddingVertical:7,borderRadius:8,backgroundColor:C.panel2},chipText:{fontSize:10,fontWeight:'800',color:C.navy},bagRow:{flexDirection:'row',alignItems:'center',gap:7,backgroundColor:C.panel,borderRadius:12,padding:10,marginBottom:7},step:{width:36,height:36,borderRadius:8,backgroundColor:C.navy,alignItems:'center',justifyContent:'center'},stepBig:{width:64,height:44,borderRadius:9,backgroundColor:C.navy,alignItems:'center',justifyContent:'center'},stepText:{fontSize:24,fontWeight:'900',color:C.white,textAlign:'center'},remove:{fontSize:8,fontWeight:'900',color:'#9B382E'},three:{gap:7},info:{backgroundColor:C.panel,borderRadius:11,padding:11,marginBottom:7},listRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:C.panel,borderRadius:11,padding:14,marginBottom:7},chev:{fontSize:26,color:C.navy},scoreRow:{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:C.panel,borderRadius:9,padding:6,marginBottom:5},holeNo:{width:25,fontWeight:'900',color:C.navy,textAlign:'center'},par:{width:25,fontSize:9,color:C.muted},scoreInput:{width:37,height:35,borderRadius:7,backgroundColor:C.white,borderWidth:1,borderColor:C.line,textAlign:'center',color:C.navy,fontWeight:'900'},toggle:{paddingHorizontal:7,height:35,borderRadius:7,backgroundColor:C.panel2,justifyContent:'center'},toggleOn:{backgroundColor:C.green},toggleText:{fontSize:9,fontWeight:'900',color:C.navy},clubPicker:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:C.panel,borderRadius:14,padding:12,marginBottom:10},arrow:{fontSize:42,fontWeight:'500',color:C.navy,paddingHorizontal:8},center:{alignItems:'center'},target:{fontSize:46,fontWeight:'900',color:C.navy,textAlign:'center'},adjust:{flexDirection:'row',gap:12,justifyContent:'center',marginVertical:10},phase:{fontSize:10,fontWeight:'900',color:C.gold2,letterSpacing:.8,marginTop:4,marginBottom:6},check:{flexDirection:'row',alignItems:'center',gap:10,backgroundColor:C.panel,borderRadius:12,padding:11,marginBottom:7,borderWidth:1,borderColor:C.line},checkOn:{backgroundColor:C.green},checkNo:{fontSize:15,fontWeight:'900',color:C.navy,width:20},checkMark:{fontSize:20,color:C.navy},routineRow:{flexDirection:'row',gap:8,alignItems:'center',marginBottom:7},numBox:{width:42,height:42,borderRadius:8,backgroundColor:C.panel2,alignItems:'center',justifyContent:'center'},numBoxOn:{backgroundColor:C.green},numText:{fontWeight:'900',color:C.navy},repeat:{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:C.gold,borderRadius:13,padding:15,marginTop:5},repeatNo:{fontSize:22,fontWeight:'900',color:C.dark},repeatTitle:{fontSize:16,fontWeight:'900',color:C.dark},summaryRow:{flexDirection:'row',gap:8,backgroundColor:C.panel,borderRadius:10,padding:10,marginBottom:6},priority:{fontSize:13,color:C.text,fontWeight:'700',lineHeight:19,marginBottom:6},loginBody:{flexGrow:1,justifyContent:'center',padding:18},loginMark:{fontSize:31,fontWeight:'900',color:C.white,textAlign:'center'},loginTitle:{fontSize:25,fontWeight:'900',color:C.white,textAlign:'center',marginTop:10},loginSub:{fontSize:12,color:'#C5D1D7',textAlign:'center',marginTop:5,marginBottom:16},loginCard:{backgroundColor:'#0B2637',borderRadius:18,padding:14,borderWidth:1,borderColor:'#24485C'},loginFoot:{color:C.gold2,textAlign:'center',marginTop:16,fontWeight:'700',fontSize:11}});
