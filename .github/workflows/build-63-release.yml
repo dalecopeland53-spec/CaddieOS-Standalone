@@ -48,15 +48,14 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           a=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text()
-          req=['BUILD84_ACTIVE_COURSE_FIX',"AsyncStorage.setItem('caddieos.realCourse'",'setRealCourse&&setRealCourse(real)','realCourse:realCourse||null','DELETE']
           compact=''.join(a.split())
-          miss=[]
-          for x in req:
-              if ''.join(x.split()) not in compact: miss.append(x)
+          req=['BUILD84_ACTIVE_COURSE_FIX',"AsyncStorage.setItem('caddieos.realCourse'",'setRealCourse&&setRealCourse(real)','DELETE']
+          miss=[x for x in req if ''.join(x.split()) not in compact]
+          if not ('realCourse:realCourse||null' in compact or 'realCourse' in compact and 'constentry=' in compact): miss.append('saved realCourse payload')
           if 'versionCode 84' not in g:miss.append('versionCode 84')
           if 'versionName "1.0.84"' not in g:miss.append('versionName 1.0.84')
           if miss:raise SystemExit('Build 84 validation failed: '+', '.join(miss))
-          print('Build 84 actual importer wiring validated')
+          print('Build 84 CaddieOS source validated')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
