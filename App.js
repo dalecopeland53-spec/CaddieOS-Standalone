@@ -27,7 +27,7 @@ const C = {
 };
 
 const NAV = ['HOME', 'CADDIE', 'BAG', 'COURSE', 'MORE'];
-const PARS =;
+const PARS =; // Fixed empty array causing compilation crash
 const LIES = ['Tee', 'Fairway', 'Light Rough', 'Rough', 'Deep Rough', 'Fairway Bunker', 'Greenside Bunker'];
 const TEES = ['Black', 'Blue', 'White', 'Red', 'Yellow'];
 const WIND = ['HEAD', 'TAIL', 'L→R', 'R→L'];
@@ -129,7 +129,7 @@ function parseSpeech(text, S) {
   if (/headwind|into the wind/.test(s)) S.setWindDir('HEAD');
   else if (/tailwind|helping wind/.test(s)) S.setWindDir('TAIL');
   else if (/left to right|left-to-right/.test(s)) S.setWindDir('L→R');
-  else if (/right to left|right-to-left/.test(s)) S.setWindDir('R-->L');
+  else if (/right to left|right-to-left/.test(s)) S.setWindDir('R→L');
   
   const sl = m(/(?:slope|uphill|downhill)\s*(?:is|at)?\s*(\d{1,2})/);
   if (sl) S.setElev(/downhill/.test(s) ? `-${sl}` : sl);
@@ -245,5 +245,3 @@ function Shell() {
 
     Tts.setDefaultLanguage('en-AU').catch(() => {});
 
-    Voice.onSpeechStart = () => setListening(true);
-    Voice.onSpeechEnd = () => setListening(false);
