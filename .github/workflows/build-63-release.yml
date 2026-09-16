@@ -48,9 +48,10 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           a=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text();compact=''.join(a.split())
-          req=['BUILD84_ACTIVE_COURSE_FIX',"AsyncStorage.setItem('caddieos.realCourse'",'setRealCourse(real)','realCourse,setRealCourse','DELETE']
+          req=['BUILD84_ACTIVE_COURSE_FIX',"AsyncStorage.setItem('caddieos.realCourse'",'setRealCourse(real)','realCourse,setRealCourse','realCourse={realCourse}']
           miss=[x for x in req if ''.join(x.split()) not in compact]
           if "page==='COURSE'" not in a or 'realCourse,setRealCourse' not in compact: miss.append('COURSE shared state route')
+          if "page==='ROUND'" not in a or 'realCourse={realCourse}' not in compact: miss.append('ROUND realCourse route')
           if 'versionCode 84' not in g:miss.append('versionCode 84')
           if 'versionName "1.0.84"' not in g:miss.append('versionName 1.0.84')
           if miss:raise SystemExit('Build 84 validation failed: '+', '.join(miss))
