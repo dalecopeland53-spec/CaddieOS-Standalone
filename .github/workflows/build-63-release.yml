@@ -1,4 +1,4 @@
-name: CaddieOS Build 72 Release
+name: CaddieOS Build 73 Release
 
 on:
   push:
@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build72:
-    name: Build 72 APK
+  build73:
+    name: Build 73 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -43,7 +43,7 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install Build 72 source
+      - name: Install Build 73 source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
@@ -60,28 +60,29 @@ jobs:
           python3 scripts/build70_patch.py
           python3 scripts/build71_patch.py
           python3 scripts/build72_patch.py
-      - name: Validate Build 72 source
+          python3 scripts/build73_patch.py
+      - name: Validate Build 73 source
         run: |
           python3 - <<'PY'
           from pathlib import Path
           app=Path('CaddieOS/App.js').read_text(); gradle=Path('CaddieOS/android/app/build.gradle').read_text(); manifest=Path('CaddieOS/android/app/src/main/AndroidManifest.xml').read_text()
-          required=['BUILD72_EMPTY_ROUTINE','BUILD71_PLAYER_ONE','BUILD70_PHONE_FIT','BUILD69_FIELD_TEST','BUILD67_RESPONSIVE','BUILD66_LOGIN','BUILD65_WIND_UI','PLAYER PROFILE','ENTER CADDIEOS','My Pre Shot Routine','4-player traditional card','SCORE THIS HOLE','ANTI-GLARE ON','Player 1']
+          required=['BUILD73_COURSE_VIEW','BUILD72_EMPTY_ROUTINE','BUILD71_PLAYER_ONE','BUILD70_PHONE_FIT','BUILD69_FIELD_TEST','BUILD67_RESPONSIVE','BUILD66_LOGIN','BUILD65_WIND_UI','PLAYER PROFILE','ENTER CADDIEOS','My Pre Shot Routine','4-player traditional card','SCORE THIS HOLE','ANTI-GLARE ON','Player 1','LIVE HOLE VIEW','STROKE_INDEX','courseMetres']
           missing=[x for x in required if x not in app]
           missing += [x for x in ['android.permission.ACCESS_FINE_LOCATION','android.permission.ACCESS_COARSE_LOCATION','android.permission.RECORD_AUDIO','android.permission.INTERNET'] if x not in manifest]
-          if 'versionCode 72' not in gradle: missing.append('versionCode 72')
-          if 'versionName "1.0.72"' not in gradle: missing.append('versionName 1.0.72')
-          if missing: raise SystemExit('Build 72 validation failed: '+', '.join(missing))
-          print('Build 72 validation passed: Player 1 and empty custom routine included')
+          if 'versionCode 73' not in gradle: missing.append('versionCode 73')
+          if 'versionName "1.0.73"' not in gradle: missing.append('versionName 1.0.73')
+          if missing: raise SystemExit('Build 73 validation failed: '+', '.join(missing))
+          print('Build 73 validation passed: upgraded hole view and proper scorecard included')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-72.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-73.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-72
-          path: output/CaddieOS-Build-72.apk
+          name: CaddieOS-Build-73
+          path: output/CaddieOS-Build-73.apk
           if-no-files-found: error
           retention-days: 14
