@@ -40,11 +40,21 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install current CaddieOS master source
+      - name: Install and repair current CaddieOS master source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
           if [ -f compactWorkingPages.js ]; then cp compactWorkingPages.js CaddieOS/compactWorkingPages.js; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('CaddieOS/App.js')
+          s=p.read_text()
+          broken='const PARS =;'
+          fixed="const PARS = [4, 4, 3, 5, 4, 4, 3, 4, 5, 4, 4, 3, 5, 4, 4, 3, 4, 5];"
+          if broken not in s:
+              raise SystemExit('Expected PARS fault not found; refusing blind patch')
+          p.write_text(s.replace(broken, fixed, 1))
+          PY
       - name: Configure Android permissions and release version
         run: |
           python3 - <<'PY'
@@ -56,7 +66,6 @@ jobs:
           for perm in perms:
               line=f'<uses-permission android:name="{perm}" />'
               if line not in s:
-                  s=s.replace('<manifest', '<manifest', 1)
                   pos=s.find('>')+1
                   s=s[:pos]+'\n    '+line+s[pos:]
           manifest.write_text(s)
@@ -70,6 +79,7 @@ jobs:
         run: |
           test -s CaddieOS/App.js
           test -s CaddieOS/index.js
+          grep -Fq "const PARS = [4, 4, 3, 5, 4, 4, 3, 4, 5, 4, 4, 3, 5, 4, 4, 3, 4, 5];" CaddieOS/App.js
           grep -q "versionCode 95" CaddieOS/android/app/build.gradle
           grep -q "RECORD_AUDIO" CaddieOS/android/app/src/main/AndroidManifest.xml
           grep -q "ACCESS_FINE_LOCATION" CaddieOS/android/app/src/main/AndroidManifest.xml
