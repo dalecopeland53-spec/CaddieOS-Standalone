@@ -1,4 +1,4 @@
-name: CaddieOS Build 86 Release
+name: CaddieOS Build 87 Release
 on:
   push:
     branches: [main]
@@ -6,8 +6,8 @@ on:
 permissions:
   contents: read
 jobs:
-  build86:
-    name: Build 86 APK
+  build87:
+    name: Build 87 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -37,32 +37,32 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install Build 86 source
+      - name: Install Build 87 source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
           cp compactWorkingPages.js CaddieOS/compactWorkingPages.js
-          for n in 60 61 62 63 64 65 66 67 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86; do python3 scripts/build${n}_patch.py; done
-      - name: Validate Build 86 source
+          for n in 60 61 62 63 64 65 66 67 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87; do python3 scripts/build${n}_patch.py; done
+      - name: Validate Build 87 source
         run: |
           python3 - <<'PY'
           from pathlib import Path
           a=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text();compact=''.join(a.split())
-          req=['BUILD86_LIVE_TARGET_FIX','BUILD85_LIVE_COURSE','overpass-api.de/api/interpreter','realCourse={realCourse}','functionRound(','realCourse','baseTarget=targets&&targets[idx]?targets[idx]:{}']
+          req=['BUILD87_NEARBY_COURSE_LOCK','searchNearbyOpenGolfCourses','radius_mi','NEARBY50KM','courseResolved','apiHole?.raw||apiHole||{}','realCourse={realCourse}']
           miss=[x for x in req if ''.join(x.split()) not in compact]
-          if 'versionCode 86' not in g:miss.append('versionCode 86')
-          if 'versionName "1.0.86"' not in g:miss.append('versionName 1.0.86')
-          if miss:raise SystemExit('Build 86 validation failed: '+', '.join(miss))
-          print('Build 86 shared realCourse -> Round -> GPS target wiring validated')
+          if 'versionCode 87' not in g:miss.append('versionCode 87')
+          if 'versionName "1.0.87"' not in g:miss.append('versionName 1.0.87')
+          if miss:raise SystemExit('Build 87 validation failed: '+', '.join(miss))
+          print('Build 87 nearby course -> selected ID -> holes wiring validated')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-86.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-87.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-86
-          path: output/CaddieOS-Build-86.apk
+          name: CaddieOS-Build-87
+          path: output/CaddieOS-Build-87.apk
           if-no-files-found: error
           retention-days: 14
