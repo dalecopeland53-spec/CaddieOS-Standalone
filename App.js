@@ -1,4 +1,4 @@
-// Build 60: Header marker
+// Build 103: Clean master source
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -27,7 +27,7 @@ const C = {
 };
 
 const NAV = ['HOME', 'CADDIE', 'BAG', 'COURSE', 'MORE'];
-const PARS =; // Fixed empty array causing compilation crash
+const PARS = [4,4,3,5,4,4,3,4,5,4,4,3,5,4,4,3,4,5];
 const LIES = ['Tee', 'Fairway', 'Light Rough', 'Rough', 'Deep Rough', 'Fairway Bunker', 'Greenside Bunker'];
 const TEES = ['Black', 'Blue', 'White', 'Red', 'Yellow'];
 const WIND = ['HEAD', 'TAIL', 'L→R', 'R→L'];
@@ -245,3 +245,70 @@ function Shell() {
 
     Tts.setDefaultLanguage('en-AU').catch(() => {});
 
+
+
+    Voice.onSpeechStart = () => setListening(true);
+    Voice.onSpeechEnd = () => setListening(false);
+    Voice.onSpeechError = () => setListening(false);
+    Voice.onSpeechResults = e => {
+      const spoken = e?.value?.[0];
+      if (spoken) {
+        setHeard(spoken);
+        parseSpeech(spoken, { setDistance, setWind, setWindDir, setElev, setLie });
+      }
+      setListening(false);
+    };
+    return () => {
+      active = false;
+      Voice.destroy().then(Voice.removeAllListeners).catch(() => {});
+    };
+  }, []);
+
+  const toggleListening = async () => {
+    try {
+      if (listening) { await Voice.stop(); setListening(false); }
+      else { setHeard('Listening...'); await Voice.start('en-AU'); }
+    } catch { setListening(false); }
+  };
+
+  const saveAll = async () => {
+    try {
+      await AsyncStorage.setItem(STORAGE, JSON.stringify({units,player,email,handicap,bag,course,tee,targets,scores,putts,gir,fw,pen,notes,roundLog,practiceHistory,routineSteps,courseInfo}));
+    } catch {}
+  };
+
+  const requestGps = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const ok = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+        if (ok !== PermissionsAndroid.RESULTS.GRANTED) return;
+      }
+      Geolocation.getCurrentPosition(pos => setGps({lat:pos.coords.latitude,lon:pos.coords.longitude}), () => {}, {enableHighAccuracy:true,timeout:12000,maximumAge:5000});
+    } catch {}
+  };
+
+  if (!entered) return (
+    <SafeAreaView style={styles.root}>
+      <View style={styles.login}><Text style={styles.logo}>CADDIE<Text style={styles.gold}>OS</Text></Text><Text style={styles.tag}>YOUR CADDIE. YOUR GAME.</Text><TextInput style={styles.input} value={player} onChangeText={setPlayer} placeholder="Player name" placeholderTextColor="#667581"/><TextInput style={styles.input} value={handicap} onChangeText={setHandicap} placeholder="Handicap" placeholderTextColor="#667581" keyboardType="numeric"/><TouchableOpacity style={styles.primary} onPress={()=>setEntered(true)}><Text style={styles.primaryText}>ENTER CADDIEOS</Text></TouchableOpacity></View>
+    </SafeAreaView>
+  );
+
+  return (
+    <SafeAreaView style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={C.bg}/>
+      <View style={styles.header}><Text style={styles.logoSmall}>CADDIE<Text style={styles.gold}>OS</Text></Text><Text style={styles.hole}>HOLE {hole} · PAR {PARS[idx]}</Text></View>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {tab==='HOME' && <View><Text style={styles.pageTitle}>HOME</Text><TouchableOpacity style={styles.primary} onPress={()=>setTab('CADDIE')}><Text style={styles.primaryText}>START ROUND</Text></TouchableOpacity><TouchableOpacity style={styles.card} onPress={requestGps}><Text style={styles.cardTitle}>GPS</Text><Text style={styles.body}>{gps?'GPS FIX READY':'Tap to get GPS fix'}</Text></TouchableOpacity><TouchableOpacity style={styles.card} onPress={saveAll}><Text style={styles.cardTitle}>SAVE</Text><Text style={styles.body}>Save player, course, bag and round</Text></TouchableOpacity></View>}
+        {tab==='CADDIE' && <View><Text style={styles.pageTitle}>CADDIE</Text><View style={styles.card}><Text style={styles.cardTitle}>PLAYS LIKE</Text><Text style={styles.big}>{result.y} {units==='METRES'?'m':'yd'}</Text><Text style={styles.club}>{result.club}</Text><Text style={styles.body}>{caddieText}</Text></View><TouchableOpacity style={styles.mic} onPress={toggleListening}><Text style={styles.micText}>{listening?'LISTENING…':'🎙  ASK CADDIE'}</Text></TouchableOpacity><View style={styles.card}><Text style={styles.cardTitle}>HEARD</Text><Text style={styles.body}>{heard}</Text></View><View style={styles.row}><TextInput style={[styles.input,styles.flex]} value={distance} onChangeText={setDistance} keyboardType="numeric" placeholder="Distance"/><TextInput style={[styles.input,styles.flex]} value={wind} onChangeText={setWind} keyboardType="numeric" placeholder="Wind"/></View><View style={styles.row}>{WIND.map(w=><TouchableOpacity key={w} style={[styles.chip,windDir===w&&styles.chipOn]} onPress={()=>setWindDir(w)}><Text style={styles.chipText}>{w}</Text></TouchableOpacity>)}</View><View style={styles.row}><TouchableOpacity style={styles.navButton} onPress={()=>setHole(String(Math.max(1,n(hole)-1)))}><Text style={styles.navText}>‹ PREV</Text></TouchableOpacity><TouchableOpacity style={styles.navButton} onPress={()=>setHole(String(Math.min(18,n(hole)+1)))}><Text style={styles.navText}>NEXT ›</Text></TouchableOpacity></View></View>}
+        {tab==='BAG' && <View><Text style={styles.pageTitle}>MY BAG</Text>{bag.map((b,i)=><View key={i} style={styles.bagRow}><Text style={styles.body}>{b[0]}</Text><TextInput style={styles.bagInput} value={String(b[1])} keyboardType="numeric" onChangeText={v=>setBag(x=>x.map((q,j)=>j===i?[q[0],n(v)]:q))}/></View>)}</View>}
+        {tab==='COURSE' && <View><Text style={styles.pageTitle}>COURSE</Text><TextInput style={styles.input} value={course} onChangeText={setCourse} placeholder="Course name"/><Text style={styles.cardTitle}>TEE</Text><View style={styles.row}>{TEES.map(t=><TouchableOpacity key={t} style={[styles.chip,tee===t&&styles.chipOn]} onPress={()=>setTee(t)}><Text style={styles.chipText}>{t}</Text></TouchableOpacity>)}</View><TouchableOpacity style={styles.primary} onPress={requestGps}><Text style={styles.primaryText}>GET GPS FIX</Text></TouchableOpacity></View>}
+        {tab==='MORE' && <View><Text style={styles.pageTitle}>MORE</Text><View style={styles.card}><Text style={styles.cardTitle}>ROUND</Text><Text style={styles.body}>Score {total || '—'} · Holes {played} · To par {toPar>=0?'+':''}{toPar}</Text><Text style={styles.body}>Putts {totalPutts}</Text></View><TouchableOpacity style={styles.primary} onPress={saveAll}><Text style={styles.primaryText}>SAVE ALL</Text></TouchableOpacity></View>}
+      </ScrollView>
+      <View style={styles.bottom}>{NAV.map(x=><TouchableOpacity key={x} style={styles.tab} onPress={()=>setTab(x)}><Text style={[styles.tabText,tab===x&&styles.tabOn]}>{x}</Text></TouchableOpacity>)}</View>
+    </SafeAreaView>
+  );
+}
+
+const styles=StyleSheet.create({
+  root:{flex:1,backgroundColor:C.bg},login:{flex:1,justifyContent:'center',padding:22},logo:{fontSize:42,fontWeight:'900',color:C.white,textAlign:'center'},logoSmall:{fontSize:22,fontWeight:'900',color:C.white},gold:{color:C.gold2},tag:{color:C.gold2,textAlign:'center',marginBottom:28,letterSpacing:2},header:{paddingHorizontal:16,paddingVertical:10,flexDirection:'row',justifyContent:'space-between',alignItems:'center',borderBottomWidth:1,borderBottomColor:C.gold},hole:{color:C.gold2,fontWeight:'800'},scroll:{padding:14,paddingBottom:90},pageTitle:{fontSize:20,fontWeight:'900',color:C.gold2,marginBottom:10},card:{backgroundColor:C.panel,padding:14,borderRadius:10,marginBottom:10},cardTitle:{fontSize:12,fontWeight:'900',color:C.navy,letterSpacing:1},body:{fontSize:15,color:C.text,marginTop:5},big:{fontSize:42,fontWeight:'900',color:C.navy},club:{fontSize:24,fontWeight:'900',color:C.blue,marginBottom:8},input:{backgroundColor:C.panel,color:C.text,borderRadius:8,paddingHorizontal:12,paddingVertical:10,marginBottom:10,fontSize:16},primary:{backgroundColor:C.gold,padding:14,borderRadius:9,alignItems:'center',marginBottom:10},primaryText:{color:C.dark,fontWeight:'900'},mic:{backgroundColor:C.blue,padding:18,borderRadius:12,alignItems:'center',marginBottom:10},micText:{color:C.white,fontSize:18,fontWeight:'900'},row:{flexDirection:'row',gap:6,marginBottom:8,flexWrap:'wrap'},flex:{flex:1,minWidth:120},chip:{backgroundColor:C.bg2,borderWidth:1,borderColor:C.gold,paddingVertical:9,paddingHorizontal:10,borderRadius:8},chipOn:{backgroundColor:C.blue},chipText:{color:C.white,fontWeight:'800'},navButton:{flex:1,backgroundColor:C.panel2,padding:12,borderRadius:8,alignItems:'center'},navText:{color:C.navy,fontWeight:'900'},bagRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',backgroundColor:C.panel,padding:9,borderRadius:8,marginBottom:5},bagInput:{backgroundColor:C.white,color:C.text,width:82,textAlign:'center',padding:7,borderRadius:6},bottom:{position:'absolute',bottom:0,left:0,right:0,flexDirection:'row',backgroundColor:C.dark,borderTopWidth:1,borderTopColor:C.gold,paddingBottom:8,paddingTop:8},tab:{flex:1,alignItems:'center'},tabText:{fontSize:10,fontWeight:'800',color:C.gold},tabOn:{color:C.white}
+});
