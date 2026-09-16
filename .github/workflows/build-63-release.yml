@@ -1,4 +1,4 @@
-name: CaddieOS Build 79 Release
+name: CaddieOS Build 80 Release
 
 on:
   push:
@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build79:
-    name: Build 79 APK
+  build80:
+    name: Build 80 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -43,7 +43,7 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install Build 79 source
+      - name: Install Build 80 source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
@@ -67,29 +67,30 @@ jobs:
           python3 scripts/build77_patch.py
           python3 scripts/build78_patch.py
           python3 scripts/build79_patch.py
-      - name: Validate Build 79 source
+          python3 scripts/build80_patch.py
+      - name: Validate Build 80 source
         run: |
           python3 - <<'PY'
           from pathlib import Path
           app=Path('CaddieOS/App.js').read_text(); gradle=Path('CaddieOS/android/app/build.gradle').read_text(); manifest=Path('CaddieOS/android/app/src/main/AndroidManifest.xml').read_text()
-          required=['BUILD79_STARTUP_FIX','BUILD78_REAL_COURSE_CADDIE','BUILD77_REAL_COURSE_API','buildRealCourseAdvice','openGolfHoleContext','OPENGOLF_API','const[realCourse,setRealCourse]=useState(null)']
+          required=['BUILD80_REAL_COURSE_SELECT','BUILD79_STARTUP_FIX','RealCoursePicker','searchOpenGolfCourses','loadOpenGolfCourse','buildRealCourseAdvice','openGolfHoleContext','OPENGOLF_API','setRealCourse']
           missing=[x for x in required if x not in app]
-          if 'versionCode 79' not in gradle: missing.append('versionCode 79')
-          if 'versionName "1.0.79"' not in gradle: missing.append('versionName 1.0.79')
+          if 'versionCode 80' not in gradle: missing.append('versionCode 80')
+          if 'versionName "1.0.80"' not in gradle: missing.append('versionName 1.0.80')
           if 'android.permission.ACCESS_FINE_LOCATION' not in manifest: missing.append('location permission')
           if 'android.permission.RECORD_AUDIO' not in manifest: missing.append('audio permission')
-          if missing: raise SystemExit('Build 79 validation failed: '+', '.join(missing))
-          print('Build 79 validation passed: startup hook fixed; real-course caddie retained')
+          if missing: raise SystemExit('Build 80 validation failed: '+', '.join(missing))
+          print('Build 80 validation passed: real course selection + GPS caddie wiring included')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-79.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-80.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-79
-          path: output/CaddieOS-Build-79.apk
+          name: CaddieOS-Build-80
+          path: output/CaddieOS-Build-80.apk
           if-no-files-found: error
           retention-days: 14
