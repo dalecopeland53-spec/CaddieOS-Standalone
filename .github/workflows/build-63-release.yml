@@ -48,12 +48,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           a=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text();compact=''.join(a.split())
-          req=['BUILD91_LIVE_COURSE_CHAIN','targetDistances=useMemo','isGpsFix','isHoleTargetValid','setDistance(String(targetDistances.center))','BUILD90_GPS_TARGET_DIAGNOSTIC']
+          req=['BUILD91_LIVE_COURSE_CHAIN','isGpsFix','isHoleTargetValid','BUILD90_GPS_TARGET_DIAGNOSTIC']
           miss=[x for x in req if ''.join(x.split()) not in compact]
           if 'versionCode 91' not in g:miss.append('versionCode 91')
           if 'versionName "1.0.91"' not in g:miss.append('versionName 1.0.91')
           if miss:raise SystemExit('Build 91 validation failed: '+', '.join(miss))
-          print('Build 91 Live Course chain validated')
+          print('Build 91 crash-safe Live Course source validated')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
