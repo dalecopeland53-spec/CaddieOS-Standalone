@@ -135,24 +135,24 @@ const styles=StyleSheet.create({
                   pos=s.find('>')+1; s=s[:pos]+'\n    '+line+s[pos:]
           manifest.write_text(s)
           g=Path('CaddieOS/android/app/build.gradle'); t=g.read_text()
-          t=re.sub(r'versionCode\s+\d+','versionCode 97',t,count=1)
-          t=re.sub(r'versionName\s+"[^"]+"','versionName "1.0.97"',t,count=1)
+          t=re.sub(r'versionCode\s+\d+','versionCode 102',t,count=1)
+          t=re.sub(r'versionName\s+"[^"]+"','versionName "1.0.102"',t,count=1)
           g.write_text(t)
           PY
       - name: Validate source
         run: |
           test -s CaddieOS/App.js
-          grep -q "versionCode 97" CaddieOS/android/app/build.gradle
+          grep -q "versionCode 102" CaddieOS/android/app/build.gradle
           grep -q "Voice.onSpeechResults" CaddieOS/App.js
-          echo "CaddieOS Build 97 source repaired"
+          echo "CaddieOS Build 102 source repaired"
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-97.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-102.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-97
-          path: output/CaddieOS-Build-97.apk
+          name: CaddieOS-Build-102
+          path: output/CaddieOS-Build-102.apk
           if-no-files-found: error
           retention-days: 14
