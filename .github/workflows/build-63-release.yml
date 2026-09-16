@@ -1,4 +1,4 @@
-name: CaddieOS Build 88 Release
+name: CaddieOS Build 89 Release
 on:
   push:
     branches: [main]
@@ -6,8 +6,8 @@ on:
 permissions:
   contents: read
 jobs:
-  build88:
-    name: Build 88 APK
+  build89:
+    name: Build 89 APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -37,33 +37,33 @@ jobs:
           dependencies { implementation 'com.facebook.react:react-android' }
           GRADLE
           python3 -c "from pathlib import Path; import re; [p.write_text(re.sub(r'\\s+package=\"[^\"]+\"','',p.read_text(),count=1)) for p in [Path('node_modules/@react-native-voice/voice/android/src/main/AndroidManifest.xml'),Path('node_modules/react-native-tts/android/src/main/AndroidManifest.xml')] if p.exists()]"
-      - name: Install Build 88 source
+      - name: Install Build 89 source
         run: |
           cp App.js CaddieOS/App.js
           cp index.js CaddieOS/index.js
           cp compactWorkingPages.js CaddieOS/compactWorkingPages.js
-          for n in 60 61 62 63 64 65 66 67 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88; do python3 scripts/build${n}_patch.py; done
-      - name: Validate Build 88 source
+          for n in 60 61 62 63 64 65 66 67 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89; do python3 scripts/build${n}_patch.py; done
+      - name: Validate Build 89 source
         run: |
           python3 - <<'PY'
           from pathlib import Path
           a=Path('CaddieOS/App.js').read_text();g=Path('CaddieOS/android/app/build.gradle').read_text();compact=''.join(a.split())
-          req=['BUILD88_GPS_STREAM_TARGET_FIX','Geolocation.getCurrentPosition(setGPSPoint','Geolocation.watchPosition(setGPSPoint','[realCourse]);','gpsLat=Number(gps?.lat)','[realCourse,!!gps]','BUILD87_NEARBY_COURSE_LOCK','apiHole?.raw||apiHole||{}']
+          req=['BUILD89_GPS_FEED_STATUS_FIX','constonFix=p=>','setGPSPoint(p);setGpsLive(true)','maximumAge:0','Geolocation.watchPosition(onFix','BUILD88_GPS_STREAM_TARGET_FIX','gpsLat=Number(gps?.lat)','[realCourse,!!gps]']
           miss=[x for x in req if ''.join(x.split()) not in compact]
           if '[realCourse,gpsLive]' in compact:miss.append('GPS stop/restart regression')
-          if 'versionCode 88' not in g:miss.append('versionCode 88')
-          if 'versionName "1.0.88"' not in g:miss.append('versionName 1.0.88')
-          if miss:raise SystemExit('Build 88 validation failed: '+', '.join(miss))
-          print('Build 88 GPS stream, stop control and real target fallback validated')
+          if 'versionCode 89' not in g:miss.append('versionCode 89')
+          if 'versionName "1.0.89"' not in g:miss.append('versionName 1.0.89')
+          if miss:raise SystemExit('Build 89 validation failed: '+', '.join(miss))
+          print('Build 89 real GPS feed status validated')
           PY
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-88.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-89.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-88
-          path: output/CaddieOS-Build-88.apk
+          name: CaddieOS-Build-89
+          path: output/CaddieOS-Build-89.apk
           if-no-files-found: error
           retention-days: 14
