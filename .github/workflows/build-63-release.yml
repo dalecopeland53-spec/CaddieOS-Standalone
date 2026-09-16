@@ -1,4 +1,4 @@
-name: CaddieOS Build 106
+name: CaddieOS Build 107
 
 "on":
   push:
@@ -66,8 +66,8 @@ jobs:
           manifest.write_text(text)
           gradle = Path('CaddieOS/android/app/build.gradle')
           text = gradle.read_text()
-          text = re.sub(r'versionCode\s+\d+', 'versionCode 106', text, count=1)
-          text = re.sub(r'versionName\s+"[^"]+"', 'versionName "1.0.106"', text, count=1)
+          text = re.sub(r'versionCode\s+\d+', 'versionCode 107', text, count=1)
+          text = re.sub(r'versionName\s+"[^"]+"', 'versionName "1.0.107"', text, count=1)
           gradle.write_text(text)
           PY
       - name: Validate clean source
@@ -78,18 +78,20 @@ jobs:
           grep -q "function CourseInfo" CaddieOS/App.js
           grep -q "function PostRound" CaddieOS/App.js
           grep -q "function Practice" CaddieOS/App.js
+          grep -q "Four-Player Scorecard" CaddieOS/App.js
+          grep -q "api.open-meteo.com" CaddieOS/App.js
           test -s CaddieOS/compactWorkingPages.js
           grep -q "const s=StyleSheet.create" CaddieOS/App.js
-          grep -q "versionCode 106" CaddieOS/android/app/build.gradle
+          grep -q "versionCode 107" CaddieOS/android/app/build.gradle
       - name: Build release APK
         working-directory: CaddieOS/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
       - name: Collect APK
-        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-106.apk
+        run: mkdir -p output && cp CaddieOS/android/app/build/outputs/apk/release/app-release.apk output/CaddieOS-Build-107.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CaddieOS-Build-106
-          path: output/CaddieOS-Build-106.apk
+          name: CaddieOS-Build-107
+          path: output/CaddieOS-Build-107.apk
           if-no-files-found: error
           retention-days: 14
